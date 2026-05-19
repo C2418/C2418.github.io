@@ -1,4 +1,4 @@
-import type {
+﻿import type {
         ExpressiveCodeConfig,
         LicenseConfig,
         NavBarConfig,
@@ -8,7 +8,7 @@ import type {
 import { LinkPreset } from "./types/config";
 
 export const siteConfig: SiteConfig = {
-        title: "2418",
+        title: "2418 博客",
         subtitle: "A personal blog for 2418",
         lang: "zh_CN", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
         themeColor: {
@@ -42,15 +42,15 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
         links: [
                 {
-                        name: "首页",
+                        name: "棣栭〉",
                         url: "/",
                 },
                 {
-                        name: "归档",
+                        name: "褰掓。",
                         url: "/archive/",
                 },
                 {
-                        name: "关于",
+                        name: "鍏充簬",
                         url: "/about/",
                 },
                 {
@@ -95,3 +95,4 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
         // Please select a dark theme, as this blog theme currently only supports dark background color
         theme: "github-dark",
 };
+
