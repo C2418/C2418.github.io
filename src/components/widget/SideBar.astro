@@ -7,16 +7,52 @@ import Tag from "./Tags.astro";
 interface Props {
 	class?: string;
 	headings?: MarkdownHeading[];
+	title?: string;
 }
 
-const className = Astro.props.class;
+const { headings = [], class: className, title } = Astro.props;
 ---
-<div id="sidebar" class:list={[className, "w-full"]}>
-    <div class="flex flex-col w-full gap-4 mb-2">
+<div id="sidebar" class:list={[className, "w-full h-full flex flex-col overflow-x-hidden"]}>
+    <div class="profile-container flex flex-col w-full mb-2">
         <Profile></Profile>
     </div>
-    <div id="sidebar-sticky" class="transition-all duration-700 flex flex-col w-full gap-4 top-4 sticky top-4">
-        <Categories class="onload-animation" style="animation-delay: 150ms"></Categories>
-        <Tag class="onload-animation" style="animation-delay: 200ms"></Tag>
+    <div id="sidebar-sticky" class="flex flex-col w-full gap-4 flex-grow overflow-x-hidden">
+        <div class="flex flex-col gap-4">
+            <Categories class="onload-animation" style="animation-delay: 150ms"></Categories>
+            <Tag class="onload-animation" style="animation-delay: 200ms"></Tag>
+        </div>
     </div>
 </div>
+
+<style is:global>
+/* 迷你模式下的文字隐藏逻辑 */
+#sidebar.collapsed-mode .profile-container .font-bold,
+#sidebar.collapsed-mode .profile-container .text-neutral-400,
+#sidebar.collapsed-mode .profile-container .rounded-full, /* 装饰线 */
+#sidebar.collapsed-mode .profile-container .flex-wrap, /* 社交链接文字 */
+#sidebar.collapsed-mode .profile-container .btn-regular span {
+    display: none !important;
+}
+
+#sidebar.collapsed-mode .profile-container .max-w-\[12rem\] {
+    max-width: 48px !important;
+    margin-bottom: 0 !important;
+}
+
+#sidebar.collapsed-mode #sidebar-sticky {
+    display: none !important; /* 迷你态暂时隐藏分类和标签 */
+}
+
+/* 侧边栏整体文字截断 */
+#sidebar .sidebar-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.3s ease;
+}
+
+#sidebar.collapsed-mode .sidebar-label {
+    opacity: 0;
+    pointer-events: none;
+}
+</style>

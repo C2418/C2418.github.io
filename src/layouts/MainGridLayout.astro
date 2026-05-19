@@ -3,10 +3,10 @@ import BackToTop from "@components/control/BackToTop.astro";
 import Footer from "@components/Footer.astro";
 import Navbar from "@components/Navbar.astro";
 import SideBar from "@components/widget/SideBar.astro";
+import TOC from "@components/widget/TOC.astro";
 import type { MarkdownHeading } from "astro";
 import { Icon } from "astro-icon/components";
 import ImageWrapper from "../components/misc/ImageWrapper.astro";
-import TOC from "../components/widget/TOC.astro";
 import { siteConfig } from "../config";
 import {
 	BANNER_HEIGHT,
@@ -38,14 +38,14 @@ const hasBannerLink = !!siteConfig.banner.credit.url;
 
 const mainPanelTop = siteConfig.banner.enable
 	? `calc(${BANNER_HEIGHT}vh - ${MAIN_PANEL_OVERLAPS_BANNER_HEIGHT}rem)`
-	: "5.5rem";
+	: "4.5rem";
 ---
 
 <Layout title={title} banner={banner} description={description} lang={lang} setOGTypeArticle={setOGTypeArticle}>
 
 <!-- Navbar -->
 <slot slot="head" name="head"></slot>
-<div id="top-row" class="z-50 pointer-events-none relative transition-all duration-700 w-full px-0 md:px-4 mx-auto" class:list={[""]}>
+<div id="top-row" class="z-50 pointer-events-none relative transition-all duration-700 w-full mx-auto" class:list={[""]}>
     <div id="navbar-wrapper" class="pointer-events-auto sticky top-0 transition-all">
         <Navbar></Navbar>
     </div>
@@ -61,65 +61,61 @@ const mainPanelTop = siteConfig.banner.enable
 
 <!-- Main content -->
 <div class="absolute w-full z-30 pointer-events-none" style={`top: ${mainPanelTop}`}>
-    <!-- The pointer-events-none here prevent blocking the click event of the TOC -->
-    <div class="relative w-full mx-auto pointer-events-auto px-4">
-        <div id="main-grid" class="transition duration-700 w-full left-0 right-0 grid grid-cols-[20rem_auto] grid-rows-[auto_1fr_auto] lg:grid-rows-[auto]
-    mx-auto gap-4"
+    <div class="relative w-full mx-auto pointer-events-auto">
+        <div id="main-grid" class="transition duration-700 w-full left-0 right-0 flex mx-auto min-h-[calc(100vh-4.5rem)]"
         >
-            <!-- Banner image credit -->
-            {hasBannerCredit && <a href={siteConfig.banner.credit.url} id="banner-credit" target="_blank" rel="noopener" aria-label="Visit image source"
-                                   class:list={["group onload-animation transition-all absolute flex justify-center items-center rounded-full " +
-                                   "px-3 right-4 -top-[3.25rem] bg-black/60 hover:bg-black/70 h-9", {"hover:pr-9 active:bg-black/80": hasBannerLink}]}
-            >
-                <Icon class="text-white/75 text-[1.25rem] mr-1" name="material-symbols:copyright-outline-rounded" ></Icon>
-                <div class="text-white/75 text-xs">{siteConfig.banner.credit.text}</div>
-                <Icon class:list={["transition absolute text-[oklch(0.75_0.14_var(--hue))] right-4 text-[0.75rem] opacity-0",
-                    {"group-hover:opacity-100": hasBannerLink}]}
-                      name="fa6-solid:arrow-up-right-from-square">
-                </Icon>
-            </a>}
+            <!-- 1. Sidebar Spacer (真实的挤压占位符) -->
+            <div id="sidebar-spacer" class="w-[20rem] transition-all duration-300 ease-in-out flex-shrink-0 hidden lg:block"></div>
 
+            <!-- 2. Sidebar Body (Fixed 定位，支持悬浮展开) -->
+            <aside id="main-sidebar" class="fixed left-0 top-[4.5rem] bottom-0 w-[20rem] z-40 transition-all duration-300 ease-in-out bg-[var(--card-bg)] border-r border-[var(--line-color)] overflow-y-auto hide-scrollbar group hover:shadow-2xl">
+                <SideBar headings={headings} title={title}></SideBar>
+            </aside>
 
-            <SideBar class="mb-4 row-start-2 row-end-3 col-span-2 lg:row-start-1 lg:row-end-2 lg:col-span-1 lg:max-w-[20rem] onload-animation" headings={headings}></SideBar>
-
-            <main id="swup-container" class="transition-swup-fade col-span-2 lg:col-span-1 overflow-hidden">
-                <div id="content-wrapper" class="onload-animation">
-                    <!-- the overflow-hidden here prevent long text break the layout-->
-                    <!-- make id different from windows.swup global property -->
+            <!-- 3. Main Content Area -->
+            <main id="swup-container" class="transition-swup-fade flex-grow px-4 py-4 pr-[18rem]">
+                <div id="content-wrapper" class="onload-animation max-w-4xl mx-auto">
                     <slot></slot>
-                    <div class="footer col-span-2 onload-animation hidden lg:block">
+                    <div class="footer col-span-2 onload-animation hidden lg:block mt-8 text-center">
                         <Footer></Footer>
                     </div>
                 </div>
             </main>
 
-            <div class="footer col-span-2 onload-animation block lg:hidden">
-                <Footer></Footer>
-            </div>
+            <!-- Right TOC (Floating) -->
+            {headings.length > 0 && (
+                <div id="right-toc-wrapper" class="fixed top-[5.5rem] right-4 w-[16rem] hidden xl:block z-40 transition-all duration-300">
+                    <div class="card-base p-4 max-h-[calc(100vh-8rem)] overflow-y-auto hide-scrollbar">
+                        <div class="text-sm font-bold text-black/40 dark:text-white/40 mb-3 px-2 uppercase tracking-wider border-b border-[var(--line-color)] pb-2">目录</div>
+                        <TOC headings={headings}></TOC>
+                    </div>
+                </div>
+            )}
         </div>
 
         <BackToTop></BackToTop>
     </div>
 </div>
 
-<!-- The things that should be under the banner, only the TOC for now -->
-<div class="absolute w-full z-0 hidden 2xl:block">
-    <div class="relative max-w-[var(--page-width)] mx-auto">
-        <!-- TOC component -->
-        {siteConfig.toc.enable && <div id="toc-wrapper" class:list={["hidden lg:block transition absolute top-0 -right-[var(--toc-width)] w-[var(--toc-width)] items-center",
-            {"toc-hide": siteConfig.banner.enable}]}
-        >
-            <div id="toc-inner-wrapper" class="fixed top-14 w-[var(--toc-width)] h-[calc(100vh_-_35rem)] overflow-y-scroll overflow-x-hidden hide-scrollbar">
-                <div id="toc" class="w-full h-full transition-swup-fade ">
-                    <div class="h-8 w-full"></div>
-                    <TOC headings={headings}></TOC>
-                    <div class="h-8 w-full"></div>
-                </div>
-            </div>
-        </div>}
-
-        <!-- #toc needs to exist for Swup to work normally -->
-        {!siteConfig.toc.enable && <div id="toc"></div>}
-    </div>
-</div>
+<style is:global>
+/* 侧边栏折叠状态下的样式 */
+.sidebar-collapsed #sidebar-spacer {
+    width: 4.5rem !important;
+}
+.sidebar-collapsed #main-sidebar {
+    width: 4.5rem !important;
+}
+/* 悬浮展开态 */
+.sidebar-collapsed #main-sidebar:hover {
+    width: 20rem !important;
+    box-shadow: 10px 0 30px -10px rgba(0,0,0,0.1);
+}
+/* 同步 SideBar 组件内部的迷你态 */
+.sidebar-collapsed #main-sidebar #sidebar {
+    padding: 0.5rem !important;
+}
+.sidebar-collapsed #main-sidebar:not(:hover) #sidebar {
+    /* 迷你态下传递类名给子组件 */
+}
+</style>
 </Layout>
