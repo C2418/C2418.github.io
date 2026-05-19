@@ -1,4 +1,4 @@
-import sitemap from "@astrojs/sitemap";
+﻿import sitemap from "@astrojs/sitemap";
 import svelte from "@astrojs/svelte";
 import tailwind from "@astrojs/tailwind";
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
@@ -26,8 +26,8 @@ import { pluginCustomCopyButton } from "./src/plugins/expressive-code/custom-cop
 
 // https://astro.build/config
 export default defineConfig({
-	site: "https://fuwari.vercel.app/",
-	base: "/",
+	site: "https://c2418.github.io/",
+	base: "/C2418",
 	trailingSlash: "always",
 	integrations: [
 		tailwind({
@@ -170,3 +170,4 @@ export default defineConfig({
 		},
 	},
 });
+
