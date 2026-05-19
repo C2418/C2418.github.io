@@ -1,4 +1,4 @@
----
+﻿---
 import { Icon } from "astro-icon/components";
 import { navBarConfig, siteConfig } from "../config";
 import { LinkPresets } from "../constants/link-presets";
@@ -21,7 +21,7 @@ let links: NavBarLink[] = navBarConfig.links.map(
         },
 );
 
-// 获取最新推送时间 (Build Time)
+// 鑾峰彇鏈€鏂版帹閫佹椂闂?(Build Time)
 let formattedTime = "";
 try {
     const lastCommitTime = execSync("git log -1 --format=%cI").toString().trim();
@@ -31,7 +31,7 @@ try {
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false
+        hour12: false,`n        timeZone: "Asia/Shanghai"
     });
 } catch (e) {
     formattedTime = new Date().toLocaleString("zh-CN", {
@@ -40,7 +40,7 @@ try {
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false
+        hour12: false,`n        timeZone: "Asia/Shanghai"
     });
 }
 ---
@@ -147,3 +147,4 @@ function loadButtonScript() {
 loadButtonScript();
 document.addEventListener('astro:after-swap', loadButtonScript);
 </script>
+
