@@ -1,5 +1,5 @@
 ﻿---
-title: 2418 博客重构：从 Gmail 侧边栏到顶级域名部署的调试全记录
+title: 2418 博客：从 Gmail 侧边栏到顶级域名部署的调试全记录
 published: 2026-05-19
 description: 记录一次深度的 Astro 博客重构之旅：侧边栏逻辑重写、TOC 性能优化、GitHub Pages 根域名迁移以及那些“血泪”调试瞬间。
 tags: [Astro, TailwindCSS, GitHub Pages, Debugging, Refactor]
@@ -7,7 +7,7 @@ category: 技术笔记
 draft: false
 ---
 
-# 2418 博客重构：从 Gmail 侧边栏到顶级域名部署的调试全记录
+# 2418 博客：从 Gmail 侧边栏到顶级域名部署的调试全记录
 
 就在今天，我们对 2418 博客进行了一次“脱胎换骨”的重构。作为一名有“开源精神”的博主，我决定不仅分享心路历程，更要把这次重构中最核心的代码逻辑贴出来供大家参考。
 
@@ -145,3 +145,4 @@ formattedTime = new Date().toLocaleString("zh-CN", {
 这次重构不仅是代码的更新，更是对 Web 交互细节的一次深入探索。代码本身是有生命力的，希望这些片段能给同样在折腾博客的你一点启发。
 
 **2418 博客，代码全开，正式启航！** 🚀✨
+

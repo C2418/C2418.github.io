@@ -8,7 +8,7 @@
 import { LinkPreset } from "./types/config";
 
 export const siteConfig: SiteConfig = {
-        title: "2418 博客",
+        title: "2418",
         subtitle: "A personal blog for 2418",
         lang: "zh_CN", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
         themeColor: {
@@ -95,4 +95,5 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
         // Please select a dark theme, as this blog theme currently only supports dark background color
         theme: "github-dark",
 };
+
 
