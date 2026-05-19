@@ -30,11 +30,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9 # 强制指定 v9 版本，匹配你的项目
+          # 不再手动指定版本，让它自动读取 package.json 的 packageManager 字段
           run_install: false
 
       - name: Install dependencies
-        # 去掉 --frozen-lockfile，防止因为锁文件微小差异导致构建失败
         run: pnpm install
 
       - name: Build with Astro
