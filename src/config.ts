@@ -1,4 +1,4 @@
-import type {
+﻿import type {
 	ExpressiveCodeConfig,
 	LicenseConfig,
 	NavBarConfig,
@@ -8,8 +8,8 @@ import type {
 import { LinkPreset } from "./types/config";
 
 export const siteConfig: SiteConfig = {
-	title: "技术探索日志",
-	subtitle: "记录安全架构与自托管项目的演进",
+	title: "鎶€鏈帰绱㈡棩蹇?,
+	subtitle: "璁板綍瀹夊叏鏋舵瀯涓庤嚜鎵樼椤圭洰鐨勬紨杩?,
 	lang: "zh_CN", // Language code, e.g. 'en', 'zh_CN', 'ja', etc.
 	themeColor: {
 		hue: 250, // Default hue for the theme color, from 0 to 360. e.g. red: 0, teal: 200, cyan: 250, pink: 345
@@ -42,20 +42,20 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
 	links: [
 		{
-			name: "首页",
+			name: "棣栭〉",
 			url: "/",
 		},
 		{
-			name: "归档",
+			name: "褰掓。",
 			url: "/archive/",
 		},
 		{
-			name: "关于",
+			name: "鍏充簬",
 			url: "/about/",
 		},
 		{
 			name: "GitHub",
-			url: "https://github.com/saicaca/fuwari", // Internal links should not include the base path, as it is automatically added
+			url: "https://github.com/C2418", // Internal links should not include the base path, as it is automatically added
 			external: true, // Show an external link icon and will open in a new tab
 		},
 	],
@@ -81,7 +81,7 @@ export const profileConfig: ProfileConfig = {
 		{
 			name: "GitHub",
 			icon: "fa6-brands:github",
-			url: "https://github.com/saicaca/fuwari",
+			url: "https://github.com/C2418",
 		},
 	],
 };
@@ -97,3 +97,4 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
 	// Please select a dark theme, as this blog theme currently only supports dark background color
 	theme: "github-dark",
 };
+
