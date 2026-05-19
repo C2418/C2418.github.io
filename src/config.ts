@@ -1,4 +1,4 @@
-﻿import type {
+import type {
         ExpressiveCodeConfig,
         LicenseConfig,
         NavBarConfig,
@@ -42,15 +42,15 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
         links: [
                 {
-                        name: "棣栭〉",
+                        name: "首页",
                         url: "/",
                 },
                 {
-                        name: "褰掓。",
+                        name: "归档",
                         url: "/archive/",
                 },
                 {
-                        name: "鍏充簬",
+                        name: "关于",
                         url: "/about/",
                 },
                 {
@@ -95,5 +95,3 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
         // Please select a dark theme, as this blog theme currently only supports dark background color
         theme: "github-dark",
 };
-
-
