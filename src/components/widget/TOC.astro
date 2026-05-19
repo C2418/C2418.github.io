@@ -4,236 +4,194 @@ import { siteConfig } from "../../config";
 import { url } from "../../utils/url-utils";
 
 interface Props {
-	class?: string;
-	headings: MarkdownHeading[];
+        class?: string;
+        headings: MarkdownHeading[];
 }
 
 let { headings = [] } = Astro.props;
 
 let minDepth = 10;
 for (const heading of headings) {
-	minDepth = Math.min(minDepth, heading.depth);
+        minDepth = Math.min(minDepth, heading.depth);
 }
 
 const className = Astro.props.class;
 const isPostsRoute = Astro.url.pathname.startsWith(url("/posts/"));
 
 const removeTailingHash = (text: string) => {
-	let lastIndexOfHash = text.lastIndexOf("#");
-	if (lastIndexOfHash !== text.length - 1) {
-		return text;
-	}
+        let lastIndexOfHash = text.lastIndexOf("#");
+        if (lastIndexOfHash !== text.length - 1) {
+                return text;
+        }
 
-	return text.substring(0, lastIndexOfHash);
+        return text.substring(0, lastIndexOfHash);
 };
 
 const maxLevel = siteConfig.toc.depth;
 ---
 {isPostsRoute &&
 <table-of-contents class:list={[className, "group relative flex flex-col pl-4"]}>
-    {/* 全局轨道基准线 */}
     <div class="absolute left-0 top-0 bottom-0 w-[1px] bg-black/5 dark:bg-white/10"></div>
     
-    {/* 激活指示短线 */}
-    <div id="active-indicator" style="opacity: 0" class="absolute left-0 w-[2px] bg-[var(--primary)] transition-all duration-300 z-10 shadow-[0_0_8px_var(--primary)]"></div>
-
     <div class="flex flex-col relative w-full gap-1">
+        <!-- 极度丝滑的指示器 -->
+        <div 
+            id="active-indicator" 
+            style="opacity: 0; transform: translate3d(0, 0, 0);" 
+            class="absolute -left-4 w-[2.5px] bg-[var(--primary)] z-10 shadow-[0_0_15px_var(--primary)] rounded-full transition-all duration-350 ease-[cubic-bezier(0.23,1,0.32,1)] will-change-transform"
+        ></div>
+
         {headings.filter((heading) => heading.depth < minDepth + maxLevel).map((heading) =>
-            <a href={`#${heading.slug}`} 
+            <a href={`#${heading.slug}`}
                title={removeTailingHash(heading.text)}
                class:list={[
-                   "toc-item relative flex items-center transition-all duration-300 py-1.5 pr-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5",
+                   "toc-item relative flex items-center py-1.5 pr-2 rounded-md transition-colors duration-300 hover:bg-black/5 dark:hover:bg-white/5",
                    {
                        "h2-item font-medium text-[14px] text-black/80 dark:text-white/80 mt-2": heading.depth == minDepth,
                        "h3-item text-[13px] text-black/60 dark:text-white/60 ml-4": heading.depth == minDepth + 1,
                        "h4-item text-[12px] text-black/40 dark:text-white/40 ml-8": heading.depth == minDepth + 2,
                    }
                ]}
-               data-depth={heading.depth}
+               data-slug={heading.slug}
             >
-                <span class="truncate block w-full">{removeTailingHash(heading.text)}</span>
+                <span class="truncate block w-full text-ellipsis overflow-hidden">{removeTailingHash(heading.text)}</span>
             </a>
         )}
     </div>
 </table-of-contents>}
 
 <style is:global>
-/* 激活态精致样式 */
 .toc-item.active {
     color: var(--primary) !important;
-    font-weight: 500 !important;
-    background-color: transparent !important;
-}
-/* 隐藏滚动条 */
-.hide-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-.hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-/* 平滑滚动偏移 */
-:target {
-    scroll-margin-top: 5.5rem;
+    font-weight: 600 !important;
 }
 </style>
 
 <script>
 class TableOfContents extends HTMLElement {
-    tocEl: HTMLElement | null = null;
-    visibleClass = "active";
-    observer: IntersectionObserver;
-    anchorNavTarget: HTMLElement | null = null;
-    headingIdxMap = new Map<string, number>();
-    headings: HTMLElement[] = [];
-    sections: HTMLElement[] = [];
-    tocEntries: HTMLAnchorElement[] = [];
-    active: boolean[] = [];
-    activeIndicator: HTMLElement | null = null;
+    container: HTMLElement | null = null;
+    indicator: HTMLElement | null = null;
+    items: HTMLAnchorElement[] = [];
+    headings: { slug: string, element: HTMLElement, top: number }[] = [];
+    currentActiveIdx: number = -1;
 
     constructor() {
         super();
-        // 精准滚动监听配置
-        this.observer = new IntersectionObserver(
-            this.markVisibleSection, { threshold: 0.1, rootMargin: "-10% 0px -70% 0px" }
-        );
-    };
-
-    markVisibleSection = (entries: IntersectionObserverEntry[]) => {
-        entries.forEach((entry) => {
-            const id = entry.target.children[0]?.getAttribute("id");
-            const idx = id ? this.headingIdxMap.get(id) : undefined;
-            if (idx != undefined)
-                this.active[idx] = entry.isIntersecting;
-
-            if (entry.isIntersecting && this.anchorNavTarget == entry.target.firstChild)
-                this.anchorNavTarget = null;
-        });
-
-        if (!this.active.includes(true))
-            this.fallback();
-        this.update();
-    };
-
-    toggleActiveHeading = () => {
-        let activeIdx = -1;
-        // 找到当前第一个可见的标题
-        for(let j=0; j < this.active.length; j++) {
-            if(this.active[j]) {
-                activeIdx = j;
-                break;
-            }
-        }
-
-        this.tocEntries.forEach((entry, index) => {
-            if (index === activeIdx) {
-                entry.classList.add(this.visibleClass);
-            } else {
-                entry.classList.remove(this.visibleClass);
-            }
-        });
-
-        if (activeIdx === -1) {
-            this.activeIndicator?.setAttribute("style", `opacity: 0`);
-        } else {
-            const targetEntry = this.tocEntries[activeIdx];
-            // 计算指示短线相对于父容器的位置
-            const parentOffset = this.getBoundingClientRect().top;
-            const top = targetEntry.getBoundingClientRect().top - parentOffset;
-            const height = targetEntry.offsetHeight;
-            this.activeIndicator?.setAttribute("style", `opacity: 1; top: ${top}px; height: ${height}px`);
-        }
-    };
-
-    scrollToActiveHeading = () => {
-        if (this.anchorNavTarget || !this.tocEl) return;
-        const activeEntry = this.querySelector<HTMLAnchorElement>(`.${this.visibleClass}`);
-        if (!activeEntry) return;
-
-        const tocHeight = this.tocEl.clientHeight;
-        const entryTop = activeEntry.offsetTop;
-        const entryHeight = activeEntry.offsetHeight;
-
-        // 确保高亮项始终在视野内（居中策略）
-        if (entryTop < this.tocEl.scrollTop || entryTop + entryHeight > this.tocEl.scrollTop + tocHeight) {
-            this.tocEl.scrollTo({
-                top: entryTop - tocHeight / 2 + entryHeight / 2,
-                behavior: "smooth",
-            });
-        }
-    };
-
-    update = () => {
-        requestAnimationFrame(() => {
-            this.toggleActiveHeading();
-            this.scrollToActiveHeading();
-        });
-    };
-
-    fallback = () => {
-        if (!this.sections.length) return;
-        for (let i = 0; i < this.sections.length; i++) {
-            let offsetTop = this.sections[i].getBoundingClientRect().top;
-            if (offsetTop > 0 && offsetTop < window.innerHeight) {
-                this.markActiveHeading(i);
-                break;
-            }
-        }
-    };
-
-    markActiveHeading = (idx: number)=> {
-        this.active[idx] = true;
-    };
-
-    handleAnchorClick = (event: Event) => {
-        const anchor = event
-            .composedPath()
-            .find((element) => element instanceof HTMLAnchorElement);
-
-        if (anchor instanceof HTMLAnchorElement) {
-            const id = decodeURIComponent(anchor.hash?.substring(1));
-            const idx = this.headingIdxMap.get(id);
-            if (idx !== undefined) {
-                this.anchorNavTarget = this.headings[idx];
-            }
-        }
-    };
+    }
 
     connectedCallback() {
-        const element = document.querySelector('.prose');
-        if (element) {
-            setTimeout(() => this.init(), 300);
-        }
-    };
+        // 等待内容渲染完成
+        setTimeout(() => this.init(), 300);
+    }
 
     init() {
-        this.tocEl = this.parentElement; // 对应 card-base 容器
-        this.activeIndicator = document.getElementById("active-indicator");
-        this.tocEntries = Array.from(this.querySelectorAll<HTMLAnchorElement>("a.toc-item"));
+        this.container = document.getElementById('main-scroll-container');
+        this.indicator = document.getElementById('active-indicator');
+        this.items = Array.from(this.querySelectorAll('a.toc-item'));
 
-        if (this.tocEntries.length === 0) return;
+        if (!this.container || !this.indicator || this.items.length === 0) return;
 
-        this.tocEntries.forEach((entry, i) => {
-            const id = decodeURIComponent(entry.hash?.substring(1));
-            const heading = document.getElementById(id);
-            const section = heading?.parentElement;
-            if (heading instanceof HTMLElement && section instanceof HTMLElement) {
-                this.headings[i] = heading;
-                this.sections[i] = section;
-                this.headingIdxMap.set(id, i);
-                this.observer.observe(section);
+        // 获取所有标题元素并缓存它们的相对位置
+        this.refreshHeadingPositions();
+
+        // 绑定滚动事件
+        this.container.addEventListener('scroll', () => this.handleScroll(), { passive: true });
+        
+        // 初始高亮
+        this.handleScroll();
+
+        // 窗口大小变化时重新计算位置
+        window.addEventListener('resize', () => this.refreshHeadingPositions());
+    }
+
+    refreshHeadingPositions() {
+        if (!this.container) return;
+        
+        // 我们计算标题相对于容器顶部的偏移量
+        this.headings = this.items.map(item => {
+            const slug = item.getAttribute('data-slug');
+            const element = document.getElementById(slug || '');
+            return {
+                slug: slug || '',
+                element: element as HTMLElement,
+                top: element ? element.offsetTop : 0
+            };
+        }).filter(h => h.element);
+    }
+
+    handleScroll() {
+        if (!this.container || !this.indicator || this.headings.length === 0) return;
+
+        const scrollTop = this.container.scrollTop;
+        const scrollHeight = this.container.scrollHeight;
+        const containerHeight = this.container.clientHeight;
+
+        // 寻找当前应该激活的标题索引
+        let activeIdx = 0;
+        
+        // 偏移补偿，让高亮提前一点发生（比如顶部 40px 处）
+        const offset = 40;
+
+        for (let i = 0; i < this.headings.length; i++) {
+            if (scrollTop + offset >= this.headings[i].top) {
+                activeIdx = i;
+            } else {
+                break;
+            }
+        }
+
+        // 底部特殊处理：如果滚到底部了，激活最后一个
+        if (scrollTop + containerHeight >= scrollHeight - 20) {
+            activeIdx = this.headings.length - 1;
+        }
+
+        if (activeIdx !== this.currentActiveIdx) {
+            this.updateActiveState(activeIdx);
+        }
+    }
+
+    updateActiveState(idx: number) {
+        this.currentActiveIdx = idx;
+        const activeItem = this.items[idx];
+
+        // 更新文字样式
+        this.items.forEach((item, i) => {
+            if (i === idx) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
             }
         });
 
-        this.addEventListener("click", this.handleAnchorClick);
-        this.fallback();
-        this.update();
-    };
+        // 移动指示器
+        if (activeItem && this.indicator) {
+            const top = activeItem.offsetTop;
+            const height = activeItem.offsetHeight;
+            
+            this.indicator.style.opacity = "1";
+            this.indicator.style.height = `${height}px`;
+            this.indicator.style.transform = `translate3d(0, ${top}px, 0)`;
 
-    disconnectedCallback() {
-        this.sections.forEach((section) => this.observer.unobserve(section));
-        this.observer.disconnect();
-    };
+            // 让目录本身也跟随滚动，确保激活项始终可见
+            this.scrollToItem(activeItem);
+        }
+    }
+
+    scrollToItem(item: HTMLElement) {
+        const tocEl = this.parentElement;
+        if (!tocEl) return;
+
+        const tocHeight = tocEl.clientHeight;
+        const itemTop = item.offsetTop;
+        const itemHeight = item.offsetHeight;
+
+        if (itemTop < tocEl.scrollTop || itemTop + itemHeight > tocEl.scrollTop + tocHeight) {
+            tocEl.scrollTo({
+                top: itemTop - tocHeight / 2 + itemHeight / 2,
+                behavior: 'smooth'
+            });
+        }
+    }
 }
 
 if (!customElements.get("table-of-contents")) {

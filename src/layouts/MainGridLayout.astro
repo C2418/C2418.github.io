@@ -5,117 +5,194 @@ import Navbar from "@components/Navbar.astro";
 import SideBar from "@components/widget/SideBar.astro";
 import TOC from "@components/widget/TOC.astro";
 import type { MarkdownHeading } from "astro";
-import { Icon } from "astro-icon/components";
-import ImageWrapper from "../components/misc/ImageWrapper.astro";
 import { siteConfig } from "../config";
-import {
-	BANNER_HEIGHT,
-	BANNER_HEIGHT_EXTEND,
-	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT,
-} from "../constants/constants";
 import Layout from "./Layout.astro";
 
 interface Props {
-	title?: string;
-	banner?: string;
-	description?: string;
-	lang?: string;
-	setOGTypeArticle?: boolean;
-	headings?: MarkdownHeading[];
+        title?: string;
+        banner?: string;
+        description?: string;
+        lang?: string;
+        setOGTypeArticle?: boolean;
+        headings?: MarkdownHeading[];
 }
 
 const {
-	title,
-	banner,
-	description,
-	lang,
-	setOGTypeArticle,
-	headings = [],
+        title,
+        banner,
+        description,
+        lang,
+        setOGTypeArticle,
+        headings = [],
 } = Astro.props;
-const hasBannerCredit =
-	siteConfig.banner.enable && siteConfig.banner.credit.enable;
-const hasBannerLink = !!siteConfig.banner.credit.url;
-
-const mainPanelTop = siteConfig.banner.enable
-	? `calc(${BANNER_HEIGHT}vh - ${MAIN_PANEL_OVERLAPS_BANNER_HEIGHT}rem)`
-	: "4.5rem";
 ---
 
 <Layout title={title} banner={banner} description={description} lang={lang} setOGTypeArticle={setOGTypeArticle}>
 
-<!-- Navbar -->
-<slot slot="head" name="head"></slot>
-<div id="top-row" class="z-50 pointer-events-none relative transition-all duration-700 w-full mx-auto" class:list={[""]}>
-    <div id="navbar-wrapper" class="pointer-events-auto sticky top-0 transition-all">
+<!-- Navbar Wrapper -->
+<div id="top-row" class="z-50 pointer-events-none relative w-full mx-auto">
+    <div id="navbar-wrapper" class="pointer-events-auto sticky top-0 transition-all h-[4.5rem]">
         <Navbar></Navbar>
     </div>
 </div>
 
-<!-- Banner -->
-{siteConfig.banner.enable && <div id="banner-wrapper" class={`absolute z-10 w-full transition duration-700 overflow-hidden`} style={`top: -${BANNER_HEIGHT_EXTEND}vh`}>
-    <ImageWrapper id="banner" alt="Banner image of the blog" class:list={["object-cover h-full transition duration-700 opacity-0 scale-105"]}
-                  src={siteConfig.banner.src} position={siteConfig.banner.position}
+<!-- 全局包裹器 (Page Wrapper) -->
+<div class="flex w-full overflow-hidden bg-gray-50 h-[calc(100vh-4.5rem)]">
+    
+    <!-- 左侧仿 Gmail 边栏 -->
+    <div 
+        id="sidebar-placeholder" 
+        class="relative flex-shrink-0 transition-all duration-500 cubic-bezier-expo bg-white hidden lg:block w-[250px] will-change-[width]"
     >
-    </ImageWrapper>
-</div>}
-
-<!-- Main content -->
-<div class="absolute w-full z-30 pointer-events-none" style={`top: ${mainPanelTop}`}>
-    <div class="relative w-full mx-auto pointer-events-auto">
-        <div id="main-grid" class="transition duration-700 w-full left-0 right-0 flex mx-auto min-h-[calc(100vh-4.5rem)]"
+        <aside 
+            id="main-sidebar" 
+            class="absolute top-0 left-0 bottom-0 z-40 transition-all duration-500 cubic-bezier-expo bg-white border-r border-gray-200 overflow-y-auto hide-scrollbar w-[250px] flex flex-col will-change-[width,box-shadow]"
         >
-            <!-- 1. Sidebar Spacer (真实的挤压占位符) -->
-            <div id="sidebar-spacer" class="w-[20rem] transition-all duration-300 ease-in-out flex-shrink-0 hidden lg:block"></div>
-
-            <!-- 2. Sidebar Body (Fixed 定位，支持悬浮展开) -->
-            <aside id="main-sidebar" class="fixed left-0 top-[4.5rem] bottom-0 w-[20rem] z-40 transition-all duration-300 ease-in-out bg-[var(--card-bg)] border-r border-[var(--line-color)] overflow-y-auto hide-scrollbar group hover:shadow-2xl">
+             <!-- 强制锁定内部宽度，防止动画过程中的文字抖动 -->
+             <div class="w-[250px] flex-shrink-0 overflow-hidden">
                 <SideBar headings={headings} title={title}></SideBar>
+             </div>
+        </aside>
+    </div>
+
+    <!-- 中间沉浸式阅读区 -->
+    <div id="main-scroll-container" class="flex-1 min-w-0 flex overflow-y-auto px-6 py-6 gap-6 relative hide-scrollbar">
+        
+        <article class="flex-1 min-w-0 bg-white rounded-2xl shadow-sm p-8 md:p-12 h-fit overflow-hidden">
+            <div id="swup-container" class="transition-swup-fade">
+                <slot></slot>
+                <div class="footer mt-12 text-center text-gray-400">
+                    <Footer></Footer>
+                </div>
+            </div>
+            <BackToTop></BackToTop>
+        </article>
+
+        <!-- 右侧悬浮目录 -->
+        {headings.length > 0 && (
+            <aside id="toc-wrapper" class="w-[260px] flex-shrink-0 sticky top-6 hidden xl:block h-fit">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-h-[calc(100vh-10rem)] overflow-y-auto hide-scrollbar">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 px-2 border-b border-gray-50 pb-2">目录索引</h3>
+                    <TOC headings={headings}></TOC>
+                </div>
             </aside>
-
-            <!-- 3. Main Content Area -->
-            <main id="swup-container" class="transition-swup-fade flex-grow px-4 py-4 pr-[18rem]">
-                <div id="content-wrapper" class="onload-animation max-w-4xl mx-auto">
-                    <slot></slot>
-                    <div class="footer col-span-2 onload-animation hidden lg:block mt-8 text-center">
-                        <Footer></Footer>
-                    </div>
-                </div>
-            </main>
-
-            <!-- Right TOC (Floating) -->
-            {headings.length > 0 && (
-                <div id="right-toc-wrapper" class="fixed top-[5.5rem] right-4 w-[16rem] hidden xl:block z-40 transition-all duration-300">
-                    <div class="card-base p-4 max-h-[calc(100vh-8rem)] overflow-y-auto hide-scrollbar">
-                        <div class="text-sm font-bold text-black/40 dark:text-white/40 mb-3 px-2 uppercase tracking-wider border-b border-[var(--line-color)] pb-2">目录</div>
-                        <TOC headings={headings}></TOC>
-                    </div>
-                </div>
-            )}
-        </div>
-
-        <BackToTop></BackToTop>
+        )}
     </div>
 </div>
 
 <style is:global>
-/* 侧边栏折叠状态下的样式 */
-.sidebar-collapsed #sidebar-spacer {
-    width: 4.5rem !important;
-}
-.sidebar-collapsed #main-sidebar {
-    width: 4.5rem !important;
-}
-/* 悬浮展开态 */
-.sidebar-collapsed #main-sidebar:hover {
-    width: 20rem !important;
-    box-shadow: 10px 0 30px -10px rgba(0,0,0,0.1);
-}
-/* 同步 SideBar 组件内部的迷你态 */
-.sidebar-collapsed #main-sidebar #sidebar {
-    padding: 0.5rem !important;
-}
-.sidebar-collapsed #main-sidebar:not(:hover) #sidebar {
-    /* 迷你态下传递类名给子组件 */
-}
+    /* 导出苹果级贝塞尔曲线 */
+    .cubic-bezier-expo {
+        transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    :target {
+        scroll-margin-top: 1.5rem;
+    }
+
+    /* 侧边栏折叠态样式 */
+    .sidebar-collapsed #sidebar-placeholder {
+        width: 72px;
+    }
+    .sidebar-collapsed #main-sidebar {
+        width: 72px;
+    }
+
+    /* 状态 C：悬浮展开 */
+    .sidebar-collapsed #main-sidebar.is-hovered {
+        width: 250px;
+        box-shadow: 20px 0 50px -10px rgba(0,0,0,0.12); /* 更柔和且深邃的投影 */
+    }
+
+    /* 全局滚动平滑补丁 */
+    #main-scroll-container {
+        scroll-behavior: smooth;
+    }
 </style>
+
+<script is:inline>
+    function initSidebar() {
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const placeholder = document.getElementById('sidebar-placeholder');
+        const sidebar = document.getElementById('main-sidebar');
+        const container = document.body;
+        
+        if (!toggleBtn || !placeholder || !sidebar) return;
+
+        let isPinned = localStorage.getItem('sidebar-pinned') !== 'false';
+        let hoverTimer = null;
+
+        const updateUI = () => {
+            if (isPinned) {
+                container.classList.remove('sidebar-collapsed');
+                sidebar.classList.remove('is-hovered');
+            } else {
+                container.classList.add('sidebar-collapsed');
+            }
+        };
+
+        updateUI();
+
+        toggleBtn.onclick = (e) => {
+            e.preventDefault();
+            isPinned = !isPinned;
+            localStorage.setItem('sidebar-pinned', isPinned);
+            updateUI();
+        };
+
+        sidebar.onmouseenter = () => {
+            if (isPinned) return;
+            clearTimeout(hoverTimer);
+            hoverTimer = setTimeout(() => {
+                sidebar.classList.add('is-hovered');
+            }, 100); // 稍微缩短一点延迟，感觉更灵敏
+        };
+
+        sidebar.onmouseleave = () => {
+            if (isPinned) return;
+            clearTimeout(hoverTimer);
+            sidebar.classList.remove('is-hovered');
+        };
+    }
+
+    function initTOCJump() {
+        const scrollContainer = document.getElementById('main-scroll-container');
+        if (!scrollContainer) return;
+
+        document.querySelectorAll('.toc-item').forEach(item => {
+            item.onclick = (e) => {
+                e.preventDefault();
+                const id = decodeURIComponent(item.hash.substring(1));
+                const target = document.getElementById(id);
+                if (target) {
+                    const targetTop = target.getBoundingClientRect().top;
+                    const containerTop = scrollContainer.getBoundingClientRect().top;
+                    const currentScroll = scrollContainer.scrollTop;
+                    const absoluteTop = targetTop - containerTop + currentScroll - 24;
+                    
+                    scrollContainer.scrollTo({
+                        top: absoluteTop,
+                        behavior: 'smooth'
+                    });
+                    history.pushState(null, '', `#${id}`);
+                }
+            };
+        });
+    }
+
+    initSidebar();
+    initTOCJump();
+    
+    document.addEventListener('astro:after-swap', () => {
+        initSidebar();
+        initTOCJump();
+    });
+</script>
 </Layout>
