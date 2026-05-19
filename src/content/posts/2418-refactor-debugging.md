@@ -9,72 +9,139 @@ draft: false
 
 # 2418 博客重构：从 Gmail 侧边栏到顶级域名部署的调试全记录
 
-就在今天，我们对 2418 博客进行了一次“脱胎换骨”的重构。从视觉交互到底层部署，每一个细节都经历了反复的打磨与调试。作为本博客的“重启”第一篇，我想把这背后的技术选型与调试过程记录下来。
+就在今天，我们对 2418 博客进行了一次“脱胎换骨”的重构。作为一名有“开源精神”的博主，我决定不仅分享心路历程，更要把这次重构中最核心的代码逻辑贴出来供大家参考。
 
 ---
 
-## 1. 侧边栏的“灵魂”重塑：Gmail 风格 A/B/C 状态
+## 1. 核心挑战：Gmail 风格 A/B/C 状态侧边栏
 
-我们想要一个既能固定展示、又能折叠省空间、还能在悬浮时灵动扩展的侧边栏。
+我们想要一个既能固定展示、又能折叠省空间、还能在悬浮时灵动扩展的侧边栏。这涉及三个状态的精准切换：
 
-- **状态 A (Pinned)**：宽度 250px，内容常驻。
-- **状态 B (Collapsed)**：宽度 72px，仅保留图标。
-- **状态 C (Hover Expanded)**：当侧边栏折叠时，鼠标悬停 150ms 后自动浮起扩展至 250px。
+- **状态 A (Pinned)**：宽度固定，内容常驻。
+- **状态 B (Collapsed)**：宽度收缩至图标大小。
+- **状态 C (Hover Expanded)**：折叠态下，鼠标悬停即浮起扩展。
 
-**调试难点：**
-为了防止悬浮态（状态 C）引起页面内容的抖动（Reflow），我们采用了 `absolute` 定位结合 `z-index` 让其漂浮在内容层之上，并配合 `cubic-bezier` 实现了极佳的动效。
+### 侧边栏样式逻辑 (Tailwind + Vanilla CSS)
+
+为了保证性能，我们大量使用了 `will-change` 和 `cubic-bezier` 贝塞尔曲线：
+
+```css
+/* 定义平滑的 Expo 曲线 */
+.cubic-bezier-expo {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 状态 B：折叠态 */
+.sidebar-collapsed #sidebar-placeholder,
+.sidebar-collapsed #main-sidebar {
+    width: 72px;
+}
+
+/* 状态 C：折叠下的悬停浮起态 */
+.sidebar-collapsed #main-sidebar.is-hovered {
+    width: 250px;
+    box-shadow: 20px 0 50px -10px rgba(0,0,0,0.12); /* 悬浮阴影，增加层次感 */
+    z-index: 50; /* 确保浮在内容之上 */
+}
+```
+
+### 交互逻辑脚本 (Vanilla JS)
+
+为了实现防抖和持久化，我们使用了简单的 DOM 操作和 `localStorage`：
+
+```javascript
+function initSidebar() {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('main-sidebar');
+    const container = document.body;
+
+    let isPinned = localStorage.getItem('sidebar-pinned') !== 'false';
+    let hoverTimer = null;
+
+    const updateUI = () => {
+        isPinned ? container.classList.remove('sidebar-collapsed') 
+                 : container.classList.add('sidebar-collapsed');
+    };
+
+    // 初始状态恢复
+    updateUI();
+
+    // 切换逻辑
+    toggleBtn.onclick = () => {
+        isPinned = !isPinned;
+        localStorage.setItem('sidebar-pinned', isPinned);
+        updateUI();
+    };
+
+    // 状态 C 的悬停防抖逻辑
+    sidebar.onmouseenter = () => {
+        if (isPinned) return;
+        hoverTimer = setTimeout(() => {
+            sidebar.classList.add('is-hovered');
+        }, 150); // 150ms 防误触
+    };
+
+    sidebar.onmouseleave = () => {
+        clearTimeout(hoverTimer);
+        sidebar.classList.remove('is-hovered');
+    };
+}
+```
 
 ---
 
 ## 2. TOC 目录：告别掉帧，拥抱硬件加速
 
-之前的目录在高频滚动时会有轻微的卡顿感。为了实现“丝滑”体验，我们做了两项改进：
-1. **坐标系归一化**：将高亮指示器放入与链接相同的相对容器中，彻底解决定位偏移。
-2. **硬件加速**：将 `top` 动画改为 `translate3d(0, y, 0)`，并配合 `requestAnimationFrame` 确保指示器紧跟滚动节奏。
+目录高亮指示器的平滑移动是提升博客质感的关键。我们放弃了修改 `top` 值的传统做法，全面转向硬件加速：
+
+```javascript
+// TOC 指标更新逻辑
+updateActiveState(idx) {
+    const activeItem = this.items[idx];
+    if (activeItem && this.indicator) {
+        const top = activeItem.offsetTop;
+        const height = activeItem.offsetHeight;
+
+        // 使用 translate3d 触发 GPU 加速，极其顺滑
+        this.indicator.style.transform = `translate3d(0, ${top}px, 0)`;
+        this.indicator.style.height = `${height}px`;
+        this.indicator.style.opacity = "1";
+    }
+}
+```
+
+同时，我们通过 `#main-scroll-container` 实现了局部滚动监听，避免了污染全局 `window.scroll`。
 
 ---
 
-## 3. 身份的建立：2418 专属 ID
+## 3. 部署细节：顶级域名的“坑”与“填”
 
-我们将博客的名字正式定为 **2418**。
-- **新头像**：换上了企鹅与小猫坐在一起的温馨图片（`qie&coco.jpg`）。
-- **链接关联**：将所有跳转链接精准指向了我的个人 GitHub 主页。
+将博客迁移到 `https://c2418.github.io/` 时，最核心的改动是在 `astro.config.mjs`：
 
----
+```javascript
+// astro.config.mjs
+export default defineConfig({
+  site: "https://c2418.github.io",
+  base: "/", // 从 "/C2418" 迁移回根路径
+  // ...
+});
+```
 
-## 4. 部署大作战：从子路径到根域名
+以及在 GitHub Actions 中处理**时差问题**：
 
-这是今天最激动人心的部分。我们将仓库从 `C2418` 重命名为 `C2418.github.io`，并把访问地址从 `https://c2418.github.io/C2418/` 迁移到了顶级根域名：
-👉 **https://c2418.github.io/**
-
-**关键动作：**
-- 将 Astro 的 `base` 配置从 `"/C2418"` 改回了 `"/"`。
-- 修改了 Git Remote 地址以匹配重命名后的仓库。
-
----
-
-## 5. 那些令人抓狂的“血泪”瞬间
-
-调试过程并非一帆风顺，我们遇到并解决了一些相当诡异的问题：
-
-### 编码与转义之灾
-在尝试用自动化脚本修改 `Navbar.astro` 时，由于环境编码不匹配，文件里出现了一堆乱码，直接导致 Astro 编译器报出 `Unterminated string literal` 错误。
-*解决方案：* 直接清空受损文件，手动注入纯净的 TS 代码块，确保编码为 UTF-8。
-
-### Tailwind 的“灵异”消失
-在生产环境构建时，PostCSS 报出 `The link class does not exist`。
-*原因：* 某些旧模版残留的自定义类在当前编译环境下未定义。
-*解决方案：* 手术式移除冗余的 `@apply` 指令，保持代码精简。
-
-### 跨越时空的“时差”
-GitHub Actions 构建时的推送时间比本地慢了 8 小时。
-*原因：* 云端服务器默认 UTC 时间。
-*解决方案：* 在日期格式化逻辑中强制指定 `timeZone: "Asia/Shanghai"`，让时间永远准时。
+```javascript
+// 在构建脚本中强制指定时区，确保“最新更新时间”准确无误
+formattedTime = new Date().toLocaleString("zh-CN", {
+    timeZone: "Asia/Shanghai", // 强制北京时间
+    hour12: false,
+    // ...
+});
+```
 
 ---
 
-## 结语
+## 4. 结语
 
-博客不只是文字的载体，更是我们探索技术的实验室。看着那一排整齐的 GitHub Actions 绿勾，我知道这不仅是一个网页的上线，更是我们对技术细节追求的胜利。
+这次重构不仅是代码的更新，更是对 Web 交互细节的一次深入探索。代码本身是有生命力的，希望这些片段能给同样在折腾博客的你一点启发。
 
-**2418，正式启航！** 🚀✨
+**2418 博客，代码全开，正式启航！** 🚀✨
