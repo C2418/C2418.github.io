@@ -1,4 +1,5 @@
 ﻿---
+featured: true
 title: Vaultwarden 接入 Cloudflare Access + Authentik 的避坑指南
 published: 2026-05-19
 description: 零信任架构下的密码库实战：深度解析 SSO 跳转报错、主密码二次验证逻辑以及手机 App 连接失败等核心大坑的修复方案。

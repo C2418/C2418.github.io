@@ -1,23 +1,84 @@
----
+﻿---
 import type { GetStaticPaths } from "astro";
 import Pagination from "../components/control/Pagination.astro";
 import PostPage from "../components/PostPage.astro";
+import Hero from "../components/Hero.astro";
+import PostCard from "../components/PostCard.astro";
 import { PAGE_SIZE } from "../constants/constants";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 import { getSortedPosts } from "../utils/content-utils";
+import { getCollection } from "astro:content";
+import { Icon } from "astro-icon/components";
 
 export const getStaticPaths = (async ({ paginate }) => {
-	const allBlogPosts = await getSortedPosts();
-	return paginate(allBlogPosts, { pageSize: PAGE_SIZE });
+    const allBlogPosts = await getSortedPosts();
+    return paginate(allBlogPosts, { pageSize: PAGE_SIZE });
 }) satisfies GetStaticPaths;
-// https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
 
 const { page } = Astro.props;
+const isFirstPage = page.currentPage === 1;
 
-const len = page.data.length;
+// Only fetch featured posts for the first page
+let featuredPosts = [];
+if (isFirstPage) {
+    const allPosts = await getCollection('posts', ({ data }) => {
+        return import.meta.env.PROD ? data.draft !== true : true;
+    });
+    featuredPosts = allPosts
+        .filter(post => post.data.featured === true)
+        .sort((a, b) => b.data.published.valueOf() - a.data.published.valueOf())
+        .slice(0, 3);
+}
+
+const len = isFirstPage ? featuredPosts.length : page.data.length;
 ---
 
 <MainGridLayout>
-    <PostPage page={page}></PostPage>
-    <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
+    {isFirstPage ? (
+        <div class="flex flex-col gap-8">
+            <Hero />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {featuredPosts.map((post, index) => (
+                    <PostCard
+                        entry={post}
+                        class="onload-animation"
+                        style={`animation-delay: ${400 + index * 100}ms`}
+                    />
+                ))}
+            </div>
+            {featuredPosts.length === 0 && (
+                <div class="text-center py-12 text-gray-500 glass-panel rounded-3xl">
+                    未找到精选文章。请在文章前置参数中添加 `featured: true`！   
+                </div>
+            )}
+            <div class="flex justify-center mt-4">
+                <a href="/archive/" class="btn-plain scale-animation rounded-lg h-11 px-5 font-bold active:scale-95 flex items-center gap-2">
+                    前往归档 <Icon name="material-symbols:arrow-forward-rounded" class="text-xl" />
+                </a>
+            </div>
+        </div>
+    ) : (
+        <>
+            <PostPage page={page}></PostPage>
+            <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
+        </>
+    )}
 </MainGridLayout>
+
+<style is:global>
+    .onload-animation {
+        opacity: 0;
+        animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slide-up {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

@@ -120,3 +120,17 @@
     
 }
 
+
+
+/* External Link Icon */
+a[href^='http']:not([href*='c2418.github.io'])::after {
+    content: ' ↗';
+    font-size: 0.75rem;
+    display: inline-block;
+    margin-left: 2px;
+    opacity: 0.6;
+    transition: opacity 0.3s;
+}
+a[href^='http']:not([href*='c2418.github.io']):hover::after {
+    opacity: 1;
+}

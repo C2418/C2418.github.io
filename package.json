@@ -6,7 +6,7 @@
     "dev": "astro dev",
     "start": "astro dev",
     "check": "astro check",
-    "build": "astro build && pagefind --site dist",
+    "build": "astro build && npx pagefind --site dist",
     "preview": "astro preview",
     "astro": "astro",
     "type-check": "tsc --noEmit --isolatedDeclarations",
@@ -41,7 +41,6 @@
     "markdown-it": "^14.1.0",
     "mdast-util-to-string": "^4.0.0",
     "overlayscrollbars": "^2.12.0",
-    "pagefind": "^1.4.0",
     "photoswipe": "^5.4.4",
     "reading-time": "^1.5.0",
     "rehype-autolink-headings": "^7.1.0",
@@ -69,8 +68,12 @@
     "@types/markdown-it": "^14.1.2",
     "@types/mdast": "^4.0.4",
     "@types/sanitize-html": "^2.16.0",
+    "gray-matter": "^4.0.3",
+    "openai": "^6.38.0",
+    "pagefind": "^1.5.2",
     "postcss-import": "^16.1.1",
-    "postcss-nesting": "^13.0.2"
+    "postcss-nesting": "^13.0.2",
+    "rehype-external-links": "^3.0.0"
   },
   "packageManager": "pnpm@9.14.4"
 }

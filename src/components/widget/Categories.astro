@@ -1,4 +1,4 @@
----
+﻿---
 import I18nKey from "../../i18n/i18nKey";
 import { i18n } from "../../i18n/translation";
 import { getCategoryList } from "../../utils/content-utils";
@@ -23,7 +23,7 @@ const style = Astro.props.style;
 <WidgetLayout name={i18n(I18nKey.categories)} id="categories" isCollapsed={isCollapsed} collapsedHeight={COLLAPSED_HEIGHT}
                 class={className} style={style}
 >
-    {categories.map((c) =>
+    <div class="flex flex-col max-h-[70vh] overflow-y-auto sidebar-scroll pr-2">{categories.map((c) =>
         <ButtonLink
             url={c.url}
             badge={String(c.count)}

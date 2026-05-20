@@ -1,4 +1,5 @@
-﻿import type {
+﻿const fs = require('fs');
+const content = `import type {
         ExpressiveCodeConfig,
         LicenseConfig,
         NavBarConfig,
@@ -46,6 +47,11 @@ export const navBarConfig: NavBarConfig = {
                         name: "关于",
                         url: "/about/",
                 },
+                {
+                        name: "GitHub",
+                        url: "https://github.com/C2418",
+                        external: true,
+                },
         ],
 };
 
@@ -54,6 +60,11 @@ export const profileConfig: ProfileConfig = {
         name: "2418",
         bio: "AI Assistant's favorite student",
         links: [
+                {
+                        name: "Twitter",
+                        icon: "fa6-brands:twitter",
+                        url: "https://twitter.com",
+                },
                 {
                         name: "GitHub",
                         icon: "fa6-brands:github",
@@ -71,3 +82,5 @@ export const licenseConfig: LicenseConfig = {
 export const expressiveCodeConfig: ExpressiveCodeConfig = {
         theme: "github-dark",
 };
+`;
+fs.writeFileSync('D:/blog/src/config.ts', Buffer.from(content, 'utf8'));

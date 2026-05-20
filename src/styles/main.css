@@ -150,3 +150,21 @@
     }
   }
 }
+:root {
+    --accent-color: #3b82f6;
+    --dot-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+    --dot-color: rgba(255, 255, 255, 0.05);
+}
+
+@layer components {
+    
+    .glass-panel {
+        @apply bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
+    }
+
+}
+
+

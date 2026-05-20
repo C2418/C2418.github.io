@@ -147,7 +147,24 @@ const bannerOffset =
 
 		<link rel="alternate" type="application/rss+xml" title={profileConfig.name} href={`${Astro.site}rss.xml`}/>
 
-	</head>
+	
+                <script is:inline>
+                    document.addEventListener('astro:page-load', () => {
+                        const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                        const giscusFrame = document.querySelector('iframe.giscus-frame');
+                        if (giscusFrame) {
+                            giscusFrame.contentWindow.postMessage({
+                                giscus: {
+                                    setConfig: {
+                                        theme: theme === 'dark' ? 'transparent_dark' : 'light'
+                                    }
+                                }
+                            }, 'https://giscus.app');
+                        }
+                    });
+                </script>
+
+        </head>
 	<body class=" min-h-screen transition " class:list={[{"lg:is-home": isHomePage, "enable-banner": enableBanner}]}
 		  data-overlayscrollbars-initialize
 	>

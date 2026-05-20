@@ -1,4 +1,4 @@
-.scrollbar-base.os-scrollbar {
+﻿.scrollbar-base.os-scrollbar {
     @apply transition-all;
     pointer-events: unset;
 
@@ -39,4 +39,26 @@
         --os-handle-bg-hover: var(--scrollbar-bg-hover-light);
         --os-handle-bg-active: var(--scrollbar-bg-active-light);
     }
+}
+
+
+/* Custom Sidebar Scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 3px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+.dark .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+.dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
 }

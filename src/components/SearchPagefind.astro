@@ -1,0 +1,137 @@
+---
+---
+<div id="search-modal" class="fixed inset-0 z-[100] hidden p-4 sm:p-6 md:p-20 overflow-y-auto">
+    <!-- Backdrop -->
+    <div id="search-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity"></div>
+
+    <!-- Modal Content -->
+    <div class="relative mx-auto max-w-2xl transform divide-y divide-gray-100 overflow-hidden rounded-2xl bg-white/90 dark:bg-zinc-900/90 shadow-2xl transition-all border border-white/20 dark:border-zinc-700/30">
+        <div class="relative">
+            <svg class="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+            </svg>
+            <input id="search-input" type="text" class="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 focus:ring-0 sm:text-sm" placeholder="Search posts..." role="combobox" aria-expanded="false" aria-controls="options">
+        </div>
+
+        <ul id="search-results" class="max-h-96 scroll-py-2 overflow-y-auto py-2 text-sm text-gray-800 dark:text-zinc-200" role="listbox">
+            <!-- Results will be injected here -->
+        </ul>
+
+        <div id="search-empty" class="hidden px-6 py-14 text-center sm:px-14">
+            <svg class="mx-auto h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <p class="mt-4 text-sm text-gray-500">No results found.</p>
+        </div>
+    </div>
+</div>
+
+<script is:inline>
+    (function() {
+        let pagefind;
+        const getModal = () => document.getElementById('search-modal');
+        const getInput = () => document.getElementById('search-input');
+        const getResultsList = () => document.getElementById('search-results');
+        const getEmptyState = () => document.getElementById('search-empty');
+
+        async function initPagefind() {
+            if (!pagefind) {
+                try {
+                    pagefind = await import('/pagefind/pagefind.js');
+                    await pagefind.options({
+                        "primaryColor": "#3b82f6",
+                        "excerptLength": 20
+                    });
+                } catch (e) {
+                    console.warn('Pagefind index not found');
+                }
+            }
+        }
+
+        function openSearch() {
+            const modal = getModal();
+            const input = getInput();
+            if (modal) modal.classList.remove('hidden');
+            if (input) input.focus();
+            initPagefind();
+        }
+
+        function closeSearch() {
+            const modal = getModal();
+            const input = getInput();
+            const resultsList = getResultsList();
+            if (modal) modal.classList.add('hidden');
+            if (input) input.value = '';
+            if (resultsList) resultsList.innerHTML = '';
+        }
+
+        function setupSearch() {
+            const backdrop = document.getElementById('search-backdrop');
+            if (backdrop) backdrop.addEventListener('click', closeSearch);
+
+            const handleKeyDown = (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    const modal = getModal();
+                    if (modal) modal.classList.contains('hidden') ? openSearch() : closeSearch();
+                }
+                if (e.key === 'Escape') closeSearch();
+            };
+            window.removeEventListener('keydown', handleKeyDown);
+            window.addEventListener('keydown', handleKeyDown);
+
+            const handleClick = (e) => {
+                if (e.target.closest('#search-trigger')) {
+                    e.preventDefault();
+                    openSearch();
+                }
+            };
+            document.removeEventListener('click', handleClick);
+            document.addEventListener('click', handleClick);
+        }
+
+        document.addEventListener('astro:page-load', setupSearch);
+        if (document.readyState === 'complete') setupSearch();
+
+        let debounceTimer;
+        document.addEventListener('input', async (e) => {
+            if (e.target.id !== 'search-input') return;
+            
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+            const resultsList = getResultsList();
+            const emptyState = getEmptyState();
+
+            if (!query) {
+                if (resultsList) resultsList.innerHTML = '';
+                if (emptyState) emptyState.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                await initPagefind();
+                if (!pagefind) return;
+                const search = await pagefind.search(query);
+                const results = await Promise.all(search.results.slice(0, 5).map(r => r.data()));
+
+                if (resultsList) resultsList.innerHTML = '';
+                if (results.length === 0) {
+                    if (emptyState) emptyState.classList.remove('hidden');
+                } else {
+                    if (emptyState) emptyState.classList.add('hidden');
+                    results.forEach(res => {
+                        const li = document.createElement('li');
+                        li.className = 'cursor-default select-none px-4 py-2 hover:bg-blue-600 hover:text-white transition-colors';
+                        li.innerHTML = `
+                            <a href="${res.url}" class="block">
+                                <div class="font-semibold">${res.meta.title}</div>
+                                <div class="text-xs opacity-80 line-clamp-1">${res.excerpt}</div>
+                            </a>
+                        `;
+                        resultsList.appendChild(li);
+                    });
+                }
+            }, 300);
+        });
+    })();
+</script>
