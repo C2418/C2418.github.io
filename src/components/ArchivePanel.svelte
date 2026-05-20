@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 import { onMount } from "svelte";
 
 import I18nKey from "../i18n/i18nKey";
@@ -7,81 +7,91 @@ import { getPostUrlBySlug } from "../utils/url-utils";
 
 export let tags: string[];
 export let categories: string[];
-export let sortedPosts: Post[] = [];
+export let sortedPosts: any[] = [];
 
-const params = new URLSearchParams(window.location.search);
+const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : "");
 tags = params.has("tag") ? params.getAll("tag") : [];
 categories = params.has("category") ? params.getAll("category") : [];
 const uncategorized = params.get("uncategorized");
 
 interface Post {
-	slug: string;
-	data: {
-		title: string;
-		tags: string[];
-		category?: string;
-		published: Date;
-	};
+        slug: string;
+        data: {
+                title: string;
+                tags: string[];
+                category?: string;
+                published: Date;
+        };
 }
 
 interface Group {
-	year: number;
-	posts: Post[];
+        year: number;
+        posts: Post[];
 }
 
 let groups: Group[] = [];
 
-function formatDate(date: Date) {
-	const month = (date.getMonth() + 1).toString().padStart(2, "0");
-	const day = date.getDate().toString().padStart(2, "0");
-	return `${month}-${day}`;
+function formatDate(dateValue: any) {
+        const date = new Date(dateValue);
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const day = date.getDate().toString().padStart(2, "0");
+        return `${month}-${day}`;
 }
 
 function formatTag(tagList: string[]) {
-	return tagList.map((t) => `#${t}`).join(" ");
+        return tagList.map((t) => `#${t}`).join(" ");
 }
 
 onMount(async () => {
-	let filteredPosts: Post[] = sortedPosts;
+        // Fix for Astro serialization: convert strings back to Date objects
+        const processedPosts: Post[] = (sortedPosts || []).map(post => ({
+            ...post,
+            data: {
+                ...post.data,
+                published: new Date(post.data.published)
+            }
+        }));
 
-	if (tags.length > 0) {
-		filteredPosts = filteredPosts.filter(
-			(post) =>
-				Array.isArray(post.data.tags) &&
-				post.data.tags.some((tag) => tags.includes(tag)),
-		);
-	}
+        let filteredPosts: Post[] = processedPosts;
 
-	if (categories.length > 0) {
-		filteredPosts = filteredPosts.filter(
-			(post) => post.data.category && categories.includes(post.data.category),
-		);
-	}
+        if (tags.length > 0) {
+                filteredPosts = filteredPosts.filter(
+                        (post) =>
+                                Array.isArray(post.data.tags) &&
+                                post.data.tags.some((tag) => tags.includes(tag)),
+                );
+        }
 
-	if (uncategorized) {
-		filteredPosts = filteredPosts.filter((post) => !post.data.category);
-	}
+        if (categories.length > 0) {
+                filteredPosts = filteredPosts.filter(
+                        (post) => post.data.category && categories.includes(post.data.category),
+                );
+        }
 
-	const grouped = filteredPosts.reduce(
-		(acc, post) => {
-			const year = post.data.published.getFullYear();
-			if (!acc[year]) {
-				acc[year] = [];
-			}
-			acc[year].push(post);
-			return acc;
-		},
-		{} as Record<number, Post[]>,
-	);
+        if (uncategorized) {
+                filteredPosts = filteredPosts.filter((post) => !post.data.category);
+        }
 
-	const groupedPostsArray = Object.keys(grouped).map((yearStr) => ({
-		year: Number.parseInt(yearStr, 10),
-		posts: grouped[Number.parseInt(yearStr, 10)],
-	}));
+        const grouped = filteredPosts.reduce(
+                (acc, post) => {
+                        const year = post.data.published.getFullYear();
+                        if (!acc[year]) {
+                                acc[year] = [];
+                        }
+                        acc[year].push(post);
+                        return acc;
+                },
+                {} as Record<number, Post[]>,
+        );
 
-	groupedPostsArray.sort((a, b) => b.year - a.year);
+        const groupedPostsArray = Object.keys(grouped).map((yearStr) => ({
+                year: Number.parseInt(yearStr, 10),
+                posts: grouped[Number.parseInt(yearStr, 10)],
+        }));
 
-	groups = groupedPostsArray;
+        groupedPostsArray.sort((a, b) => b.year - a.year);
+
+        groups = groupedPostsArray;
 });
 </script>
 
