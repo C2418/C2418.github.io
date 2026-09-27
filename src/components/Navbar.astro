@@ -52,7 +52,7 @@ try {
         className,
         "card-base !overflow-visible w-full h-[4.5rem] !rounded-t-none mx-auto flex items-center justify-between px-4"]}>
         <div class="flex items-center gap-2">
-            <button id="sidebar-toggle" aria-label="Toggle Sidebar" class="btn-plain scale-animation rounded-full h-12 w-12 active:scale-90 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 text-[var(--primary)]">
+            <button id="sidebar-toggle" style="display:none" aria-label="切换侧边栏" class="btn-plain scale-animation rounded-full h-12 w-12 active:scale-90 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 text-[var(--primary)]">
                 <Icon name="material-symbols:menu-rounded" class="text-[1.5rem]"></Icon>
             </button>
             <a href={url('/')} class="btn-plain scale-animation rounded-lg h-[3.25rem] px-2 font-bold active:scale-95">
@@ -80,7 +80,7 @@ try {
         </div>
         <div class="flex">
             <!--<SearchPanel client:load>-->
-            <button id="search-trigger" class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90"><svg class="text-[1.25rem] mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            <button id="search-trigger" aria-label="搜索文章" class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90"><svg class="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
             {!siteConfig.themeColor.fixed && (
                     <button aria-label="Display Settings" class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="display-settings-switch">
                         <Icon name="material-symbols:palette-outline" class="text-[1.25rem]"></Icon>
@@ -96,56 +96,12 @@ try {
     </div>
 </div>
 
+
 <script>
-function loadButtonScript() {
-    // Sidebar toggle logic (State A vs State B)
-    let sidebarToggle = document.getElementById("sidebar-toggle");
-    let isPinned = localStorage.getItem('sidebar-pinned') !== 'false';
-
-    const updateSidebarState = (pinned) => {
-        const body = document.body;
-        const sidebar = document.getElementById("sidebar");
-        if (pinned) {
-            body.classList.remove("sidebar-collapsed");
-            sidebar?.classList.remove("collapsed-mode");
-        } else {
-            body.classList.add("sidebar-collapsed");
-            sidebar?.classList.add("collapsed-mode");
-        }
-        localStorage.setItem('sidebar-pinned', pinned.toString());
-    };
-
-    updateSidebarState(isPinned);
-
-    if (sidebarToggle) {
-        sidebarToggle.onclick = function() {
-            isPinned = !isPinned;
-            updateSidebarState(isPinned);
-        };
-    }
-
-    // Hover logic (State C)
-    const mainSidebar = document.getElementById("main-sidebar");
-    const sidebarInner = document.getElementById("sidebar");
-    let hoverTimeout;
-
-    if (mainSidebar && sidebarInner) {
-        mainSidebar.addEventListener('mouseenter', () => {
-            if (!isPinned) {
-                hoverTimeout = setTimeout(() => {
-                    sidebarInner.classList.remove("collapsed-mode");
-                }, 150);
-            }
-        });
-        mainSidebar.addEventListener('mouseleave', () => {
-            if (!isPinned) {
-                clearTimeout(hoverTimeout);
-                sidebarInner.classList.add("collapsed-mode");
-            }
-        });
-    }
+for (const [trigger, panel] of [['nav-menu-switch', 'nav-menu-panel'], ['display-settings-switch', 'display-setting']]) {
+    document.getElementById(trigger)?.addEventListener('click', () => {
+        const closed = document.getElementById(panel)?.classList.toggle('float-panel-closed');
+        document.getElementById(trigger)?.setAttribute('aria-expanded', String(!closed));
+    });
 }
-
-loadButtonScript();
-document.addEventListener('astro:after-swap', loadButtonScript);
 </script>

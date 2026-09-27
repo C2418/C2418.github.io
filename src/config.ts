@@ -5,7 +5,7 @@
         ProfileConfig,
         SiteConfig,
 } from "./types/config";
-import { LinkPreset } from "./types/config";
+
 
 export const siteConfig: SiteConfig = {
         title: "2418",

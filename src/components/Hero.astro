@@ -1,108 +1,33 @@
-﻿---
-import { profileConfig } from "@/config";
-import { Icon } from "astro-icon/components";
-import avatarImg from "../assets/images/avatar.jpg";
-
-const { class: className } = Astro.props;
-
-const badges = [
-  { name: 'Docker', color: 'bg-blue-600/10 text-blue-600 border-blue-600/20' },
-  { name: 'Zero Trust', color: 'bg-emerald-600/10 text-emerald-600 border-emerald-600/20' },
-  { name: 'Node.js', color: 'bg-green-600/10 text-green-600 border-green-600/20' },
-  { name: 'Astro', color: 'bg-orange-600/10 text-orange-600 border-orange-600/20' },
-];
 ---
-
-<div class:list={["flex flex-col items-center justify-center py-12 px-4 mb-8 rounded-3xl glass-panel bg-dot-grid onload-animation", className]}>
-    <!-- Avatar Area -->
-    <div class="relative group mb-6">
-        <div class="absolute -inset-1 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-        <div class="relative w-32 h-32 rounded-full border-4 border-white dark:border-zinc-800 shadow-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-            <img src={avatarImg.src} alt="Avatar" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" onerror="this.src='/avatar.png'; this.onerror=null;" />
+import { profileConfig } from "@/config";
+import { Image } from "astro:assets";
+import avatar from "../assets/images/avatar.jpg";
+import { url } from "../utils/url-utils";
+---
+<section class="hero">
+    <div>
+        <p class="eyebrow">2418 / 技术与实践</p>
+        <h1 class="text-90">把想法做出来，<br /><span>把过程记录下来。</span></h1>
+        <p class="intro text-75">你好，我是 {profileConfig.name}。这里记录自托管服务、身份认证与嵌入式项目中的探索、实现和踩坑经验。</p>
+        <div class="actions">
+            <a class="primary" href="#latest">阅读最新文章 <span aria-hidden="true">↓</span></a>
+            <a class="secondary" href={url('/about/')}>关于我 <span aria-hidden="true">↗</span></a>
         </div>
+        <div class="topics"><span>自托管</span><span>身份认证</span><span>嵌入式开发</span></div>
     </div>
-
-    <!-- Typewriter Title -->
-    <h1 class="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-800 dark:text-zinc-100 min-h-[1.5em] flex items-center">
-        <span id="typewriter"></span><span id="cursor" class="animate-pulse ml-1 text-blue-500">_</span>  
-    </h1>
-
-    <!-- Bio -->
-    <p class="text-zinc-500 dark:text-zinc-400 mb-8 max-w-md text-center leading-relaxed">    
-        {profileConfig.bio}
-    </p>
-
-    <!-- Tech Badges -->
-    <div class="flex flex-wrap justify-center gap-3">
-        {badges.map(badge => (
-            <span class:list={[
-                "px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-default",
-                badge.color
-            ]}>
-                {badge.name}
-            </span>
-        ))}
-    </div>
-</div>
-
-<script is:inline>
-    (function() {
-        let typingTimeout;
-        function startTypewriter() {
-            if (typingTimeout) clearTimeout(typingTimeout);
-            
-            const text = "你好，我是 2418。欢迎来到我的极客门户。";
-            const container = document.getElementById('typewriter');
-            if (!container) return;
-
-            container.textContent = '';
-            let i = 0;
-            const speed = 100;
-
-            function type() {
-                if (i < text.length) {
-                    container.textContent += text.charAt(i);
-                    i++;
-                    typingTimeout = setTimeout(type, speed);
-                } else {
-                    const cursor = document.getElementById('cursor');
-                    if (cursor) cursor.classList.add('animate-pulse');
-                }
-            }
-            type();
-        }
-
-        document.addEventListener('astro:page-load', startTypewriter);
-        
-        if (document.readyState === 'complete') {
-            startTypewriter();
-        } else {
-            window.addEventListener('load', startTypewriter);
-        }
-    })();
-</script>
-
-<style is:global>
-    .glass-panel {
-        @apply bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
-    }
-    .bg-dot-grid {
-        background-image: radial-gradient(circle, #8882 1px, transparent 1px);
-        background-size: 20px 20px;
-    }
-    .onload-animation {
-        opacity: 0;
-        animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes slide-up {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+    <Image src={avatar} alt={`${profileConfig.name} 的头像`} width={160} height={160} loading="eager" class="avatar" />
+</section>
+<style>
+.hero { display:flex; align-items:center; justify-content:space-between; gap:2rem; padding:clamp(1.5rem,4vw,3.5rem); border:1px solid var(--line-divider); border-radius:1.5rem; background:linear-gradient(120deg,var(--btn-regular-bg),var(--card-bg)); }
+.eyebrow { color:var(--primary); font-size:.8rem; letter-spacing:.14em; font-weight:700; margin-bottom:1.4rem; }
+h1 { font-size:clamp(1.8rem,3.5vw,3rem); line-height:1.4; font-weight:800; letter-spacing:-.04em;  }
+h1 span { color:var(--primary); }
+.intro { max-width:34rem; line-height:1.9; margin-top:1.2rem;  opacity:.75; }
+.actions { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.8rem; }
+.actions a { display:flex; gap:1.5rem; align-items:center; border-radius:.75rem; padding:.8rem 1.1rem; font-weight:600; }
+.primary { background:var(--primary); color:var(--card-bg); }
+.secondary { color:var(--primary); border:1px solid var(--line-divider); }
+.topics { display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.8rem; font-size:.8rem; color:var(--primary); }
+.avatar { width:8rem; height:8rem; object-fit:cover; border-radius:2rem; transform:rotate(5deg); box-shadow:0 12px 35px #0001; }
+@media(max-width:640px) { .avatar { display:none; } }
 </style>

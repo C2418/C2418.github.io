@@ -6,7 +6,7 @@ import SideBar from "@components/widget/SideBar.astro";
 import SearchPagefind from "@components/SearchPagefind.astro";
 import TOC from "@components/widget/TOC.astro";
 import type { MarkdownHeading } from "astro";
-import { siteConfig } from "../config";
+
 import Layout from "./Layout.astro";
 
 interface Props {
@@ -38,16 +38,16 @@ const {
 </div>
 
 <!-- 全局包裹器 (Page Wrapper) -->
-<div class="flex w-full overflow-hidden bg-gray-50 h-[calc(100vh-4.5rem)]">
+<div class="flex w-full overflow-hidden bg-[var(--page-bg)] h-[calc(100dvh-4.5rem)]">
     
     <!-- 左侧仿 Gmail 边栏 -->
     <div 
         id="sidebar-placeholder" 
-        class="relative flex-shrink-0 transition-all duration-500 cubic-bezier-expo bg-white hidden lg:block w-[250px] will-change-[width]"
+        class="relative flex-shrink-0 transition-all duration-500 cubic-bezier-expo bg-[var(--card-bg)] hidden lg:block w-[250px] will-change-[width]"
     >
         <aside 
             id="main-sidebar" 
-            class="absolute top-0 left-0 bottom-0 z-40 transition-all duration-500 cubic-bezier-expo bg-white border-r border-gray-200 overflow-y-auto hide-scrollbar w-[250px] flex flex-col will-change-[width,box-shadow]"
+            class="absolute top-0 left-0 bottom-0 z-40 transition-all duration-500 cubic-bezier-expo bg-[var(--card-bg)] border-r border-gray-200 overflow-y-auto hide-scrollbar w-[250px] flex flex-col will-change-[width,box-shadow]"
         >
              <!-- 强制锁定内部宽度，防止动画过程中的文字抖动 -->
              <div class="w-[250px] flex-shrink-0 overflow-hidden">
@@ -57,9 +57,9 @@ const {
     </div>
 
     <!-- 中间沉浸式阅读区 -->
-    <div id="main-scroll-container" class="flex-1 min-w-0 flex overflow-y-auto px-6 py-6 gap-6 relative hide-scrollbar">
+    <div id="main-scroll-container" class="flex-1 min-w-0 flex overflow-y-auto px-2 py-3 sm:px-6 sm:py-6 gap-6 relative hide-scrollbar">
         
-        <article class="flex-1 min-w-0 bg-white rounded-2xl shadow-sm p-8 md:p-12 h-fit overflow-hidden">
+        <main class="flex-1 min-w-0 bg-[var(--card-bg)] rounded-2xl shadow-sm p-4 md:p-8 h-fit overflow-hidden">
             <div id="swup-container" class="transition-swup-fade">
                 <slot></slot>
                 <div class="footer mt-12 text-center text-gray-400">
@@ -67,12 +67,12 @@ const {
                 </div>
             </div>
             <BackToTop></BackToTop>
-        </article>
+        </main>
 
         <!-- 右侧悬浮目录 -->
         {headings.length > 0 && (
             <aside id="toc-wrapper" class="w-[260px] flex-shrink-0 sticky top-6 hidden xl:block h-fit">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-h-[calc(100vh-10rem)] overflow-y-auto hide-scrollbar">
+                <div class="bg-[var(--card-bg)] rounded-2xl shadow-sm border border-gray-100 p-6 max-h-[calc(100vh-10rem)] overflow-y-auto hide-scrollbar">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 px-2 border-b border-gray-50 pb-2">目录索引</h3>
                     <TOC headings={headings}></TOC>
                 </div>
@@ -131,6 +131,8 @@ const {
         let hoverTimer = null;
 
         const updateUI = () => {
+            toggleBtn.setAttribute('aria-expanded', String(isPinned));
+            document.getElementById('sidebar')?.classList.toggle('collapsed-mode', !isPinned);
             if (isPinned) {
                 container.classList.remove('sidebar-collapsed');
                 sidebar.classList.remove('is-hovered');
@@ -153,10 +155,12 @@ const {
             clearTimeout(hoverTimer);
             hoverTimer = setTimeout(() => {
                 sidebar.classList.add('is-hovered');
+                document.getElementById('sidebar')?.classList.remove('collapsed-mode');
             }, 100); // 稍微缩短一点延迟，感觉更灵敏
         };
 
         sidebar.onmouseleave = () => {
+            document.getElementById('sidebar')?.classList.toggle('collapsed-mode', !isPinned);
             if (isPinned) return;
             clearTimeout(hoverTimer);
             sidebar.classList.remove('is-hovered');

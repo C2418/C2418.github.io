@@ -1,84 +1,39 @@
-﻿---
-import type { GetStaticPaths } from "astro";
+---
+import type { GetStaticPaths, Page } from "astro";
+import type { CollectionEntry } from "astro:content";
 import Pagination from "../components/control/Pagination.astro";
 import PostPage from "../components/PostPage.astro";
 import Hero from "../components/Hero.astro";
-import PostCard from "../components/PostCard.astro";
 import { PAGE_SIZE } from "../constants/constants";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 import { getSortedPosts } from "../utils/content-utils";
-import { getCollection } from "astro:content";
-import { Icon } from "astro-icon/components";
-
-export const getStaticPaths = (async ({ paginate }) => {
-    const allBlogPosts = await getSortedPosts();
-    return paginate(allBlogPosts, { pageSize: PAGE_SIZE });
-}) satisfies GetStaticPaths;
-
+import { getPostUrlBySlug, url } from "../utils/url-utils";
+export const getStaticPaths = (async ({ paginate }) => paginate(await getSortedPosts(), { pageSize: PAGE_SIZE })) satisfies GetStaticPaths;
+interface Props { page: Page<CollectionEntry<"posts">>; }
 const { page } = Astro.props;
 const isFirstPage = page.currentPage === 1;
-
-// Only fetch featured posts for the first page
-let featuredPosts = [];
-if (isFirstPage) {
-    const allPosts = await getCollection('posts', ({ data }) => {
-        return import.meta.env.PROD ? data.draft !== true : true;
-    });
-    featuredPosts = allPosts
-        .filter(post => post.data.featured === true)
-        .sort((a, b) => b.data.published.valueOf() - a.data.published.valueOf())
-        .slice(0, 3);
-}
-
-const len = isFirstPage ? featuredPosts.length : page.data.length;
+const featured = isFirstPage ? (await getSortedPosts()).filter(post => post.data.featured).slice(0, 3) : [];
 ---
-
-<MainGridLayout>
-    {isFirstPage ? (
-        <div class="flex flex-col gap-8">
-            <Hero />
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {featuredPosts.map((post, index) => (
-                    <PostCard
-                        entry={post}
-                        class="onload-animation"
-                        style={`animation-delay: ${400 + index * 100}ms`}
-                    />
-                ))}
+<MainGridLayout title={isFirstPage ? undefined : `文章 · 第 ${page.currentPage} 页`} description="2418 的个人博客，记录自托管、身份认证、嵌入式开发与项目实践。">
+    <div class="space-y-10">
+        {isFirstPage && <Hero />}
+        {featured.length > 0 && <section aria-labelledby="featured-title">
+            <h2 id="featured-title" class="text-xl font-bold text-90 mb-4">精选阅读</h2>
+            <div class="grid gap-3 md:grid-cols-2">
+                {featured.map(post => <a href={getPostUrlBySlug(post.slug)} class="rounded-xl border border-[var(--line-divider)] p-5 hover:bg-[var(--btn-plain-bg-hover)]">
+                    <p class="text-xs text-[var(--primary)] mb-2">{post.data.category || '技术笔记'}</p>
+                    <h3 class="font-bold text-90 leading-relaxed">{post.data.title}</h3>
+                    <p class="text-sm text-75 mt-2 line-clamp-2">{post.data.description}</p>
+                </a>)}
             </div>
-            {featuredPosts.length === 0 && (
-                <div class="text-center py-12 text-gray-500 glass-panel rounded-3xl">
-                    未找到精选文章。请在文章前置参数中添加 `featured: true`！   
-                </div>
-            )}
-            <div class="flex justify-center mt-4">
-                <a href="/archive/" class="btn-plain scale-animation rounded-lg h-11 px-5 font-bold active:scale-95 flex items-center gap-2">
-                    前往归档 <Icon name="material-symbols:arrow-forward-rounded" class="text-xl" />
-                </a>
+        </section>}
+        <section id="latest" aria-labelledby="latest-title">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <h2 id="latest-title" class="text-xl font-bold text-90">{isFirstPage ? '最新文章' : '更多文章'} <span class="text-sm font-normal text-50 ml-2">共 {page.total} 篇</span></h2>
+                <a href={url('/archive/')} class="text-sm text-[var(--primary)]">全部归档 →</a>
             </div>
-        </div>
-    ) : (
-        <>
-            <PostPage page={page}></PostPage>
-            <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
-        </>
-    )}
+            <PostPage page={page} />
+            {page.lastPage > 1 && <Pagination class="mx-auto" page={page} />}
+        </section>
+    </div>
 </MainGridLayout>
-
-<style is:global>
-    .onload-animation {
-        opacity: 0;
-        animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes slide-up {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-</style>

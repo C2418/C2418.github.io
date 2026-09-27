@@ -16,7 +16,7 @@ import { Icon } from "astro-icon/components";
     width: 3.75rem
     height: 3.75rem
     position: absolute
-    right: 0
+    right: 1.5rem
     top: 0
     pointer-events: none
 
@@ -26,24 +26,30 @@ import { Icon } from "astro-icon/components";
     font-weight: bold
     border: none
     position: fixed
-    bottom: 10rem
+    bottom: 2rem
     opacity: 1
     cursor: pointer
-    transform: translateX(5rem)
+    transform: translateX(0)
     pointer-events: auto
     i
         font-size: 1.75rem
     &.hide
-        transform: translateX(5rem) scale(0.9)
+        transform: translateX(0) scale(0.9)
         opacity: 0
         pointer-events: none
     &:active
-      transform: translateX(5rem) scale(0.9)
+      transform: translateX(0) scale(0.9)
 
 </style>
 
 <script is:raw is:inline>
 function backToTop() {
-    window.scroll({ top: 0, behavior: 'smooth' });
+    document.getElementById('main-scroll-container')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
+</script>
+
+<script>
+const scroller = document.getElementById('main-scroll-container');
+const button = document.getElementById('back-to-top-btn');
+scroller?.addEventListener('scroll', () => button?.classList.toggle('hide', scroller.scrollTop < 400), { passive: true });
 </script>
