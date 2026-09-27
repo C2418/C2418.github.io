@@ -11,7 +11,9 @@
 
 ![料位仪实物](docs/level-meter-device.jpg)
 
-照片展示装配与界面，不作为测量精度验证。
+![显示与按键电路板](docs/level-meter-pcb.jpg)
+
+照片展示装配、界面及电路板，不作为测量精度验证。
 
 ## 技术组成
 

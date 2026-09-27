@@ -3,6 +3,7 @@ title: 涂鸦智能台灯：双路 PWM 调光与本地、App 控制
 author: C2418
 published: 2026-09-27
 description: 2025 年 9 月的智能台灯项目，基于 TuyaOS 实现冷暖双路 PWM、渐变调光、旋钮与触摸交互、App DP 通信和离线控制，附脱敏应用源码。
+image: /projects/tuya-smart-lamp/images/lamp-control-board.jpg
 tags: [嵌入式, TuyaOS, 智能家居, PWM, IoT]
 category: 项目经历
 draft: false
@@ -20,6 +21,12 @@ draft: false
 [浏览应用源码与复现说明](https://github.com/C2418/C2418.github.io/tree/main/public/projects/tuya-smart-lamp/source) · [下载应用源码 ZIP](/projects/tuya-smart-lamp/tuya-smart-lamp-source.zip)
 
 > 公开版本已将产品标识、设备授权字符串替换为占位符。资料包含应用层源码，不包含完整 SDK 和设备授权；本次未重新编译、烧录或实机测试。
+
+## 硬件照片
+
+![台灯控制板实物：旋钮、供电电路和连接线](/projects/tuya-smart-lamp/images/lamp-control-board.jpg)
+
+照片展示台灯控制板的旋钮与供电部分；调光效果和输出指标仍需以实测为准。
 
 ## 功能与软件组成
 
