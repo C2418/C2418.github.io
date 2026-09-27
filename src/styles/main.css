@@ -116,27 +116,30 @@
     @apply cursor-zoom-in
 }
 
-/* Keep project photos compact in the article; the existing lightbox opens the original. */
-.project-post-cover {
-    width: min(100%, 36rem);
-    height: clamp(12rem, 32vw, 18rem);
-    margin-inline: auto;
+/* Project images are small previews; PhotoSwipe opens their full-resolution files. */
+#post-cover.project-post-cover {
+    width: 10.5rem;
+    height: 10.5rem;
+    max-width: 100%;
+    margin-inline: 0;
+    border: 1px solid var(--line-divider);
 }
 
-.project-post-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.project-post-content img {
+#post-cover.project-post-cover img,
+#post-container .project-post-content img {
     display: block;
-    width: auto;
-    height: auto;
-    max-width: min(100%, 36rem);
-    max-height: 24rem;
+    width: 10.5rem;
+    height: 10.5rem;
+    max-width: 100%;
+    max-height: 10.5rem;
     object-fit: contain;
-    margin-inline: auto;
+    background: var(--card-bg);
+}
+
+#post-container .project-post-content p:has(> img:only-child) {
+    display: inline-block;
+    vertical-align: top;
+    margin: 0.5rem 0.75rem 0.5rem 0;
 }
 
 ::selection {
