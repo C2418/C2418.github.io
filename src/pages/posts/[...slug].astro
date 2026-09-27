@@ -25,6 +25,7 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content, headings } = await entry.render();
+const isProjectPost = entry.data.category === "项目经历";
 
 const { remarkPluginFrontmatter } = await entry.render();
 
@@ -99,11 +100,11 @@ const jsonLd = {
             <!-- always show cover as long as it has one -->
 
             {entry.data.image &&
-                <ImageWrapper id="post-cover" src={entry.data.image} basePath={path.join("content/posts/", getDir(entry.id))} class="mb-8 rounded-xl banner-container onload-animation"/>
+                <ImageWrapper id="post-cover" src={entry.data.image} alt={entry.data.title} basePath={path.join("content/posts/", getDir(entry.id))} class={`mb-8 rounded-xl banner-container onload-animation ${isProjectPost ? "project-post-cover" : ""}`}/>
             }
 
 
-            <Markdown class="mb-6 markdown-content onload-animation">
+            <Markdown class={`mb-6 markdown-content onload-animation ${isProjectPost ? "project-post-content" : ""}`}>
                 <Content />
             </Markdown>
 

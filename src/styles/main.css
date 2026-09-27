@@ -116,6 +116,29 @@
     @apply cursor-zoom-in
 }
 
+/* Keep project photos compact in the article; the existing lightbox opens the original. */
+.project-post-cover {
+    width: min(100%, 36rem);
+    height: clamp(12rem, 32vw, 18rem);
+    margin-inline: auto;
+}
+
+.project-post-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.project-post-content img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: min(100%, 36rem);
+    max-height: 24rem;
+    object-fit: contain;
+    margin-inline: auto;
+}
+
 ::selection {
     background-color: var(--selection-bg)
 }
