@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NFC-IOP连接器</string>
+    <string name="bluetooth_not_supported">设备不支持蓝牙</string>
+    <string name="location_permission_required">需要位置权限来扫描蓝牙设备</string>
+    <string name="bluetooth_permission_required">需要蓝牙权限</string>
+    <string name="enable_bluetooth">请开启蓝牙</string>
+    <string name="scanning_devices">正在扫描设备...</string>
+    <string name="device_found">发现设备：%s</string>
+    <string name="device_not_found">未发现NFC-IOP设备</string>
+    <string name="connect_to_device">是否连接到设备：%s</string>
+    <string name="connecting">正在连接...</string>
+    <string name="connected">已连接</string>
+    <string name="connection_failed">连接失败</string>
+    <string name="disconnect">断开连接</string>
+    <string name="data_received">接收到数据：%s</string>
+    <string name="data_sent">发送数据：%s</string>
+    <string name="enter_data_to_send">请输入要发送的数据</string>
+    <string name="send">发送</string>
+    <string name="btn_yes">是</string>
+    <string name="btn_no">否</string>
+    <string name="btn_scan">扫描设备</string>
+    <string name="btn_connect">连接</string>
+    <string name="btn_disconnect">断开</string>
+</resources>
