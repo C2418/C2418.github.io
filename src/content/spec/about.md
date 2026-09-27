@@ -7,3 +7,7 @@
 > ### 站点说明
 > 本博客基于 [Fuwari](https://github.com/saicaca/fuwari) 框架构建。
 > 主要是为了记录技术成长，同时也希望能为遇到类似问题的同学提供参考。
+
+## 嵌入式项目
+
+- [基于 STC8H 的激光料位仪](/posts/stc8h-level-meter/)：激光测距、ST7789 显示、温湿度采集与 Modbus RTU 通信，附完整现有源码和 Keil 工程。
