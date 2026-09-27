@@ -9,12 +9,14 @@
 #include "modbus.h"            // MODBUS RTU
 #include "laser.h"
 #include "dht11.h"             // DHT11 sensor
+#include "gp8202.h"            // GP8202AS DAC (4-20mA current output)
 
 void main()
 {
-    // C51 requirement: All variable declarations must be at function start
-    unsigned char modbus_slave_addr = 1;  // MODBUS slave address
-    
+    unsigned char modbus_slave_addr = 1;  // MODBUS slave address (C51: all declarations first)
+
+    EAXSFR();   /* Enable extended SFR first (I2C regs at 0xfe80); must be before any other init */
+
     // ========================================
     // System & peripheral initialization
     // Order is important!
@@ -26,6 +28,7 @@ void main()
     Uart3_Init_WithInterrupt();     // UART3 init for MODBUS/NE2
     
     Laser_Init();                    // Configure laser enable pin (redundant but safe)
+    GP8202_Init();                   // GP8202AS DAC init (4-20mA output, I2C P1.4/P1.5)
     NE2_Init();                      // NE2 network module GPIO setup
     Uart4_Init_WithInterrupt();     // Laser module UART (interrupt FIFO)
     

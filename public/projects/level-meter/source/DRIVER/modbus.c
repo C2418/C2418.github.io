@@ -2,6 +2,7 @@
 #include "uart.h"
 #include "delay.h"
 #include "systick.h"
+#include "STC8G_H_EEPROM.h"
 
 // ========================================
 // MODBUS RTU Slave Implementation
@@ -12,15 +13,39 @@
 // MODBUS RTU Frame Format:
 // [Slave Address] [Function Code] [Data...] [CRC16 Low] [CRC16 High]
 
+// ========================================
+// EEPROM Configuration for Non-Volatile Storage
+// ========================================
+// EEPROM address layout:
+// 0x0000-0x0001: Magic number (0x55AA) to verify valid data
+// 0x0002-0x0003: Register 4000 (Screen timeout)
+// 0x0004-0x0005: Register 4001 (Auto measure interval)
+// 0x0006-0x0007: Register 4002 (Auto measure countdown)
+// 0x0008-0x0009: Register 4003 (Start point)
+// 0x000A-0x000B: Register 4004 (End point)
+// 0x000C-0x000D: Register 3000 (Slave address, low byte used)
+// Total: 14 bytes
+#define EEPROM_BASE_ADDR    0x0000
+#define EEPROM_MAGIC_ADDR   EEPROM_BASE_ADDR
+#define EEPROM_MAGIC_VALUE  0x55AA
+#define EEPROM_REG_4000     (EEPROM_BASE_ADDR + 2)
+#define EEPROM_REG_4001     (EEPROM_BASE_ADDR + 4)
+#define EEPROM_REG_4002     (EEPROM_BASE_ADDR + 6)
+#define EEPROM_REG_4003     (EEPROM_BASE_ADDR + 8)
+#define EEPROM_REG_4004     (EEPROM_BASE_ADDR + 10)
+#define EEPROM_REG_3000     (EEPROM_BASE_ADDR + 12)
+
 // Internal register table (holding registers)
-// Only store actual used registers to save XDATA space:
-// - 3000-3006: 7 read-only registers (mapped to index 0-6)
-// - 4000-4004: 5 read-write registers (mapped to index 7-11)
+// Custom address mapping for this application:
+// - 3000-3006: 7 read-only registers (ADDR, Temp, Humidity, PPS, Level, Percent, Error)
+// - 4000-4004: 5 read-write registers (Timeout, Interval, Countdown, Start, End)
 #define MODBUS_REG_COUNT 12
 static unsigned short modbus_holding_regs[MODBUS_REG_COUNT];
 
 // Register address mapping functions
-// Map MODBUS address to internal array index
+// Map custom MODBUS address to internal array index
+// 3000-3006 → index 0-6 (read-only)
+// 4000-4004 → index 7-11 (read-write)
 static unsigned short Modbus_AddrToIndex(unsigned short addr)
 {
     if(addr >= 3000 && addr <= 3006)
@@ -40,6 +65,12 @@ static unsigned char Modbus_IsValidAddr(unsigned short addr)
     return (addr >= 3000 && addr <= 3006) || (addr >= 4000 && addr <= 4004);
 }
 
+// Check if address is writable (4000-4004 only)
+static unsigned char Modbus_IsWritableAddr(unsigned short addr)
+{
+    return (addr >= 4000 && addr <= 4004);
+}
+
 // Receive buffer for MODBUS RTU frame
 #define MODBUS_RX_BUF_SIZE 64
 static unsigned char modbus_rx_buffer[MODBUS_RX_BUF_SIZE];
@@ -55,6 +86,44 @@ static unsigned char modbus_slave_addr = 1;
 // Modbus_Process() call frequency.
 #define MODBUS_FRAME_TIMEOUT_MS 4  // ≈3.5 character times at 9600bps
 static unsigned long modbus_last_rx_tick = 0;
+
+/**
+ * Helper function: Send frame via UART3 with NON-BLOCKING retry logic
+ * @param frame: Frame buffer to send
+ * @param len: Frame length
+ * @return: 1 if sent successfully, 0 if buffer full (will be retried later)
+ */
+static unsigned char Modbus_SendFrame(unsigned char* frame, unsigned char len)
+{
+    unsigned char i;
+    for(i = 0; i < len; i++)
+    {
+        unsigned char retry_count = 0;
+        while(Uart3_AddToSendBuffer(frame[i]) != 0)
+        {
+            // Buffer full, trigger send and retry a few times WITHOUT delay
+            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
+            {
+                Uart3_SendBatch();
+            }
+            // Retry up to 5 times without delay (non-blocking)
+            retry_count++;
+            if(retry_count > 5)
+            {
+                // Buffer still full after 5 tries, abort this response
+                // NE2 will timeout and retry the request
+                return 0;  // Failed to send (non-blocking)
+            }
+        }
+    }
+    
+    // Trigger send if idle
+    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
+    {
+        Uart3_SendBatch();
+    }
+    return 1;  // Success
+}
 
 /**
  * Calculate MODBUS CRC16
@@ -86,12 +155,87 @@ static unsigned short Modbus_CRC16(unsigned char * buf, unsigned char length)
 }
 
 /**
+ * Save writable registers (4000-4004) and slave address (3000) to EEPROM
+ */
+void Modbus_SaveToEEPROM(void)
+{
+    unsigned char buf[14];
+    unsigned short magic = EEPROM_MAGIC_VALUE;
+    
+    // Prepare data: magic number + 5 registers (2 bytes each) + slave address (2 bytes)
+    buf[0] = (magic >> 8) & 0xFF;
+    buf[1] = magic & 0xFF;
+    buf[2] = (modbus_holding_regs[7] >> 8) & 0xFF;   // 4000
+    buf[3] = modbus_holding_regs[7] & 0xFF;
+    buf[4] = (modbus_holding_regs[8] >> 8) & 0xFF;   // 4001
+    buf[5] = modbus_holding_regs[8] & 0xFF;
+    buf[6] = (modbus_holding_regs[9] >> 8) & 0xFF;   // 4002
+    buf[7] = modbus_holding_regs[9] & 0xFF;
+    buf[8] = (modbus_holding_regs[10] >> 8) & 0xFF;  // 4003
+    buf[9] = modbus_holding_regs[10] & 0xFF;
+    buf[10] = (modbus_holding_regs[11] >> 8) & 0xFF; // 4004
+    buf[11] = modbus_holding_regs[11] & 0xFF;
+    buf[12] = 0x00;                                   // 3000 high byte (reserved)
+    buf[13] = modbus_slave_addr;                      // 3000 low byte (slave address 1-247)
+    
+    // Erase sector first (required for Flash/EEPROM)
+    EEPROM_SectorErase(EEPROM_BASE_ADDR);
+    Delay_ms(5);  // Wait for erase to complete
+    
+    // Write data to EEPROM
+    EEPROM_write_n(EEPROM_BASE_ADDR, buf, 14);
+    Delay_ms(5);  // Wait for write to complete
+}
+
+/**
+ * Load writable registers (4000-4004) and slave address (3000) from EEPROM
+ * @return: 1 if loaded successfully, 0 if using defaults
+ */
+static unsigned char Modbus_LoadFromEEPROM(void)
+{
+    unsigned char buf[14];
+    unsigned short magic;
+    unsigned char saved_addr;
+    
+    // Read data from EEPROM
+    EEPROM_read_n(EEPROM_BASE_ADDR, buf, 14);
+    
+    // Verify magic number
+    magic = (buf[0] << 8) | buf[1];
+    if(magic != EEPROM_MAGIC_VALUE)
+    {
+        // Invalid or first boot, use defaults
+        return 0;
+    }
+    
+    // Load registers from EEPROM
+    modbus_holding_regs[7] = (buf[2] << 8) | buf[3];    // 4000
+    modbus_holding_regs[8] = (buf[4] << 8) | buf[5];    // 4001
+    modbus_holding_regs[9] = (buf[6] << 8) | buf[7];    // 4002
+    modbus_holding_regs[10] = (buf[8] << 8) | buf[9];   // 4003
+    modbus_holding_regs[11] = (buf[10] << 8) | buf[11]; // 4004
+    
+    // Load slave address from EEPROM (0x000C-0x000D, low byte used)
+    saved_addr = buf[13];
+    if(saved_addr >= 1 && saved_addr <= 247)
+    {
+        modbus_slave_addr = saved_addr;
+        modbus_holding_regs[0] = saved_addr;  // 同步寄存器3000
+    }
+    // else: 保持Modbus_Init传入的默认地址
+    
+    return 1;
+}
+
+/**
  * Initialize MODBUS RTU Slave
  * Initialize register table and receive buffer
+ * Load configuration from EEPROM if available
  */
 void Modbus_Init(unsigned char slave_addr)
 {
     unsigned char i;
+    unsigned char eeprom_loaded;
     
     // Store slave address
     modbus_slave_addr = slave_addr;
@@ -111,12 +255,20 @@ void Modbus_Init(unsigned char slave_addr)
     modbus_holding_regs[5] = 0;  // 3005: BFB: Level percentage (0-100)
     modbus_holding_regs[6] = 0;  // 3006: Error: Error flag (0x00 = no error)
     
-    // Initialize read-write registers (4000-4004, mapped to index 7-11)
+    // Initialize read-write registers (4000-4004, mapped to index 7-11) with defaults first
     modbus_holding_regs[7] = 60;   // 4000: Screen timeout: 60 seconds (1-255, 255=always on)
     modbus_holding_regs[8] = 0x001E;  // 4001: Auto measure interval: 0 minutes 30 seconds (high byte: minutes, low byte: seconds)
     modbus_holding_regs[9] = 0x001E;  // 4002: Auto measure countdown: 30 seconds
     modbus_holding_regs[10] = 5000;   // 4003: Start point: 5000mm (default)
     modbus_holding_regs[11] = 1000;   // 4004: End point: 1000mm (default, must be < start)
+    
+    // Try to load configuration from EEPROM (after setting defaults)
+    // If EEPROM load succeeds, it will overwrite the defaults
+    eeprom_loaded = Modbus_LoadFromEEPROM();
+    
+    // Note: Do NOT save defaults to EEPROM during initialization
+    // EEPROM save will happen when user modifies values via keys or Modbus
+    // This avoids blocking system startup and excessive EEPROM writes
     
     modbus_rx_index = 0;
     modbus_frame_ready = 0;
@@ -127,6 +279,11 @@ void Modbus_Init(unsigned char slave_addr)
  * Set holding register value
  * @param reg_addr: Register address (3000-3006 or 4000-4004)
  * @param value: Register value
+ * Note: This function does NOT automatically save to EEPROM.
+ *       EEPROM save is handled automatically when:
+ *       - Writing via Modbus protocol (in Modbus_Process)
+ *       - Exiting key setting mode (in App_ExitSettingState)
+ *       For other cases, call Modbus_SaveToEEPROM() explicitly.
  */
 void Modbus_SetHoldingReg(unsigned short reg_addr, unsigned short value)
 {
@@ -136,6 +293,15 @@ void Modbus_SetHoldingReg(unsigned short reg_addr, unsigned short value)
     if(index < MODBUS_REG_COUNT)
     {
         modbus_holding_regs[index] = value;
+        // Sync modbus_slave_addr when register 3000 (ADDR) is written (e.g. via K4 key)
+        if(reg_addr == 3000)
+        {
+            unsigned char addr_byte = value & 0xFF;
+            if(addr_byte >= 1 && addr_byte <= 247)
+            {
+                modbus_slave_addr = addr_byte;
+            }
+        }
     }
 }
 
@@ -183,10 +349,21 @@ void Modbus_Process(void)
     unsigned short index;
     unsigned short reg_val;
     
-    // Read characters from UART3 receive buffer (limit to prevent blocking)
-    // Process up to 20 characters per call to avoid blocking keys
+    // Flush stale INCOMPLETE frames only (do NOT flush complete frames)
+    // 50ms flush was discarding complete frames when main loop was slow (e.g. during LCD refresh)
+    // Only flush when we have partial data that cannot form a complete 03/06 frame (< 8 bytes)
+    if(modbus_rx_index > 0 && modbus_rx_index < 8 && modbus_last_rx_tick != 0 &&
+       Systick_Elapsed(modbus_last_rx_tick, 50))
+    {
+        modbus_rx_index = 0;
+        modbus_last_rx_tick = 0;
+    }
+    
+    // Read characters from UART3 receive buffer (aggressive draining)
+    // CRITICAL FIX: Read ALL available data to prevent UART3 RX buffer overflow
+    // No limit on rx_count - drain the entire buffer each call
     rx_count = 0;
-    while((recv_char = Uart3_GetCharFromBuffer()) >= 0 && rx_count < 20)
+    while((recv_char = Uart3_GetCharFromBuffer()) >= 0)
     {
         rx_count++;
         had_new_data = 1;
@@ -198,9 +375,15 @@ void Modbus_Process(void)
         }
         else
         {
-            // Buffer overflow, reset
+            // CRITICAL FIX: MODBUS buffer full - STOP reading and drain UART3 buffer
             modbus_rx_index = 0;
             modbus_last_rx_tick = 0;
+            // Drain remaining UART3 buffer without processing
+            while(Uart3_GetCharFromBuffer() >= 0)
+            {
+                // Discard all remaining data
+            }
+            break;  // Exit loop immediately
         }
     }
     
@@ -251,6 +434,15 @@ void Modbus_Process(void)
     if(frame_complete)
     {
         frame_len = modbus_rx_index;
+        
+        // CRITICAL VALIDATION: Minimum frame check
+        if(frame_len < 4)
+        {
+            // Frame too short, discard
+            modbus_rx_index = 0;
+            modbus_last_rx_tick = 0;
+            return;
+        }
         
         // Verify CRC
         crc_calc = Modbus_CRC16(modbus_rx_buffer, frame_len - 2);
@@ -328,30 +520,8 @@ void Modbus_Process(void)
                         tx_frame[byte_count] = crc_calc & 0xFF;        // CRC low
                         tx_frame[byte_count + 1] = (crc_calc >> 8) & 0xFF;  // CRC high
                         
-                        // Send response via UART3 (non-blocking: queue only, ISR handles transmit)
-                        // Try to add all bytes, but don't block if buffer is full
-                        for(i = 0; i < byte_count + 2; i++)
-                        {
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                // Buffer full, trigger send once and try again
-                                if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                {
-                                    Uart3_SendBatch();
-                                }
-                                // Try once more, if still full, skip remaining bytes (non-blocking)
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    break;  // Buffer still full, skip remaining bytes
-                                }
-                            }
-                        }
-
-                        // Trigger send once if idle; completion is handled asynchronously
-                        if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                        {
-                            Uart3_SendBatch();
-                        }
+                        // Send response via UART3 using helper function
+                        Modbus_SendFrame(tx_frame, byte_count + 2);
                     }
                     else
                     {
@@ -363,24 +533,8 @@ void Modbus_Process(void)
                         tx_frame[3] = crc_calc & 0xFF;
                         tx_frame[4] = (crc_calc >> 8) & 0xFF;
                         
-                        for(i = 0; i < 5; i++)
-                        {
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                {
-                                    Uart3_SendBatch();
-                                }
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    break;  // Buffer still full, skip remaining
-                                }
-                            }
-                        }
-                        if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                        {
-                            Uart3_SendBatch();
-                        }
+                        // Send exception response
+                        Modbus_SendFrame(tx_frame, 5);
                     }
                 }
             }
@@ -391,7 +545,7 @@ void Modbus_Process(void)
                 reg_count = 1;  // Single register
                 
                 // Validate address (only allow write to 4000-4004, not 3000-3006)
-                if(Modbus_IsValidAddr(start_addr) && start_addr >= 4000)
+                if(Modbus_IsValidAddr(start_addr) && Modbus_IsWritableAddr(start_addr))
                 {
                     // Special validation for 4003 and 4004: 4003 must be > 4004
                     // According to spec: "均需要保证4003内的值最终大于4004，否则程序会计算出错"
@@ -411,24 +565,7 @@ void Modbus_Process(void)
                             tx_frame[3] = crc_calc & 0xFF;
                             tx_frame[4] = (crc_calc >> 8) & 0xFF;
                             
-                            for(i = 0; i < 5; i++)
-                            {
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                    {
-                                        Uart3_SendBatch();
-                                    }
-                                    if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
+                            Modbus_SendFrame(tx_frame, 5);
                             // Clear receive buffer after sending exception response
                             modbus_rx_index = 0;
                             modbus_last_rx_tick = 0;
@@ -449,24 +586,7 @@ void Modbus_Process(void)
                             tx_frame[3] = crc_calc & 0xFF;
                             tx_frame[4] = (crc_calc >> 8) & 0xFF;
                             
-                            for(i = 0; i < 5; i++)
-                            {
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                    {
-                                        Uart3_SendBatch();
-                                    }
-                                    if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
+                            Modbus_SendFrame(tx_frame, 5);
                             // Clear receive buffer after sending exception response
                             modbus_rx_index = 0;
                             modbus_last_rx_tick = 0;
@@ -478,25 +598,14 @@ void Modbus_Process(void)
                     index = Modbus_AddrToIndex(start_addr);
                     modbus_holding_regs[index] = new_value;
                     
-                    // Echo request as response (non-blocking)
-                    for(i = 0; i < frame_len; i++)
+                    // Save to EEPROM for non-volatile storage (only for 4000-4004)
+                    if(start_addr >= 4000 && start_addr <= 4004)
                     {
-                        if(Uart3_AddToSendBuffer(modbus_rx_buffer[i]) != 0)
-                        {
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
-                            if(Uart3_AddToSendBuffer(modbus_rx_buffer[i]) != 0)
-                            {
-                                break;  // Buffer still full, skip remaining
-                            }
-                        }
+                        Modbus_SaveToEEPROM();
                     }
-                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                    {
-                        Uart3_SendBatch();
-                    }
+                    
+                    // Echo request as response
+                    Modbus_SendFrame(modbus_rx_buffer, frame_len);
                 }
                 else
                 {
@@ -508,27 +617,7 @@ void Modbus_Process(void)
                     tx_frame[3] = crc_calc & 0xFF;
                     tx_frame[4] = (crc_calc >> 8) & 0xFF;
                     
-                    for(i = 0; i < 5; i++)
-                    {
-                        // Non-blocking: try to add, if buffer full, trigger send and retry once, then skip
-                        if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                        {
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
-                            // Retry once
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                // Buffer still full, skip remaining bytes to avoid blocking
-                                break;
-                            }
-                        }
-                    }
-                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                    {
-                        Uart3_SendBatch();
-                    }
+                    Modbus_SendFrame(tx_frame, 5);
                     // Clear receive buffer after sending exception response
                     modbus_rx_index = 0;
                     modbus_last_rx_tick = 0;
@@ -589,24 +678,7 @@ void Modbus_Process(void)
                             tx_frame[3] = crc_calc & 0xFF;
                             tx_frame[4] = (crc_calc >> 8) & 0xFF;
                             
-                            for(i = 0; i < 5; i++)
-                            {
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                    {
-                                        Uart3_SendBatch();
-                                    }
-                                    if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
+                            Modbus_SendFrame(tx_frame, 5);
                             // Clear receive buffer after sending exception response
                             modbus_rx_index = 0;
                             modbus_last_rx_tick = 0;
@@ -621,6 +693,12 @@ void Modbus_Process(void)
                             modbus_holding_regs[index] = write_value;
                         }
                         
+                        // Save to EEPROM for non-volatile storage (only if writing to 4000-4004)
+                        if(start_addr >= 4000 && start_addr <= 4004)
+                        {
+                            Modbus_SaveToEEPROM();
+                        }
+                        
                         // Build response (echo start_addr and reg_count)
                         tx_frame[0] = slave_addr;
                         tx_frame[1] = 0x10;
@@ -632,24 +710,7 @@ void Modbus_Process(void)
                         tx_frame[6] = crc_calc & 0xFF;
                         tx_frame[7] = (crc_calc >> 8) & 0xFF;
                         
-                        for(i = 0; i < 8; i++)
-                        {
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                {
-                                    Uart3_SendBatch();
-                                }
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    break;  // Buffer still full, skip remaining
-                                }
-                            }
-                        }
-                        if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                        {
-                            Uart3_SendBatch();
-                        }
+                        Modbus_SendFrame(tx_frame, 8);
                     }
                     else
                     {
@@ -661,24 +722,7 @@ void Modbus_Process(void)
                         tx_frame[3] = crc_calc & 0xFF;
                         tx_frame[4] = (crc_calc >> 8) & 0xFF;
                         
-                        for(i = 0; i < 5; i++)
-                        {
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                                {
-                                    Uart3_SendBatch();
-                                }
-                                if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                                {
-                                    break;  // Buffer still full, skip remaining
-                                }
-                            }
-                        }
-                        if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                        {
-                            Uart3_SendBatch();
-                        }
+                        Modbus_SendFrame(tx_frame, 5);
                     }
                 }
                 else
@@ -691,27 +735,7 @@ void Modbus_Process(void)
                     tx_frame[3] = crc_calc & 0xFF;
                     tx_frame[4] = (crc_calc >> 8) & 0xFF;
                     
-                    for(i = 0; i < 5; i++)
-                    {
-                        // Non-blocking: try to add, if buffer full, trigger send and retry once, then skip
-                        if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                        {
-                            if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                            {
-                                Uart3_SendBatch();
-                            }
-                            // Retry once
-                            if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                            {
-                                // Buffer still full, skip remaining bytes to avoid blocking
-                                break;
-                            }
-                        }
-                    }
-                    if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                    {
-                        Uart3_SendBatch();
-                    }
+                    Modbus_SendFrame(tx_frame, 5);
                 }
             }
             else
@@ -724,24 +748,7 @@ void Modbus_Process(void)
                 tx_frame[3] = crc_calc & 0xFF;
                 tx_frame[4] = (crc_calc >> 8) & 0xFF;
                 
-                for(i = 0; i < 5; i++)
-                {
-                    if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                    {
-                        if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                        {
-                            Uart3_SendBatch();
-                        }
-                        if(Uart3_AddToSendBuffer(tx_frame[i]) != 0)
-                        {
-                            break;
-                        }
-                    }
-                }
-                if(Uart3_IsSending() == 0 && Uart3_HasDataToSend())
-                {
-                    Uart3_SendBatch();
-                }
+                Modbus_SendFrame(tx_frame, 5);
             }
             
             // Clear receive buffer after processing frame

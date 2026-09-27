@@ -7,7 +7,7 @@
 #define FOSC 24000000UL   // 24MHz
 #define UART4_RX_BUF_SIZE   64
 #define UART4_TX_BUF_SIZE   64
-#define UART_TX_BUF_SIZE    64  // Batch send buffer size (increased to reduce blocking)
+#define UART_TX_BUF_SIZE    256  // Increased from 128 for high-frequency MODBUS TCP
 // -------------------------------
 // UART0 functions
 // -------------------------------

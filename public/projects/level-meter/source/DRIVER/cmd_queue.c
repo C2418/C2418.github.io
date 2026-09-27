@@ -228,19 +228,19 @@ void CmdQueue_HandleResponse(const char *resp)
     item = &cmd_queue[q_head];
     if(item->state == CMD_WAIT_REPLY)
     {
-        // Special handling for KEY3 (key_id=2) and auto measure (key_id=0xFF): response like <m40m3360>
+        // Special handling for manual measure (key_id=0), KEY3 (key_id=2), auto measure (key_id=0xFF), and KEY5 calibration (key_id=5): response like <m40m3360>
         // Parse laser rangefinder response
         // Protocol format:
         //   Normal: <mX0mxxxxxx> where X is data length (1 digit, 0-9), xxxxxx is distance data (decimal)
         //   Example: <m30m500> = length 3, data 500 (0.5 meter)
         //   Example: <m40m1000> = length 4, data 1000 (1 meter)
         //   Error: <0Ezzz> where zzz is 3-digit error code
-        if((item->key_id == 2 || item->key_id == 0xFF) && resp[0] == '<')
+        if((item->key_id == 0 || item->key_id == 2 || item->key_id == 0xFF || item->key_id == 5) && resp[0] == '<')
         {
             resp_len = strlen(resp);
             
             // Check for error format: <0Ezzz> where zzz is 3-digit error code
-            // Error codes: 0EAH (超时), 0EBH (通信错误), 0ECH (超过距离), 0EDH (大于起点)
+            // Error codes: 0EAH (超时), 0EBH (通信错误), 0ECH (超过距离), 0EDH (大于起点), 0EEH (小于终点)
             if(resp_len >= 6 && resp[1] == '0' && resp[2] == 'E' && resp[resp_len - 1] == '>')
             {
                 // Parse error code (3-digit hex: positions 3, 4, 5)
@@ -332,6 +332,7 @@ void CmdQueue_HandleResponse(const char *resp)
             // Validate measurement value according to spec:
             // - 0ECH: 超过距离 (measurement exceeds maximum limit)
             // - 0EDH: 大于起点 (measurement > start point)
+            // - 0EEH: 小于终点 (measurement < end point)
             // Get start and end points from registers 4003 and 4004
             start_point = Modbus_GetHoldingReg(4003);
             end_point = Modbus_GetHoldingReg(4004);
@@ -340,6 +341,14 @@ void CmdQueue_HandleResponse(const char *resp)
             if(level_value > start_point)
             {
                 Modbus_SetHoldingReg(3006, 0xED);
+                item->state = CMD_TIMEOUT;
+                return;
+            }
+            
+            // Check if measurement < end point (0EEH error)
+            if(level_value < end_point)
+            {
+                Modbus_SetHoldingReg(3006, 0xEE);
                 item->state = CMD_TIMEOUT;
                 return;
             }
@@ -356,13 +365,26 @@ void CmdQueue_HandleResponse(const char *resp)
             // Success: Clear error code and update MODBUS register 3004 (PSDAT: Actual level data)
             // According to spec: "激光测量数据正确时，刷新设备本地显示和远程读取寄存器"
             Modbus_SetHoldingReg(3006, 0x00);  // Clear error code
-            Modbus_SetHoldingReg(3004, level_value);
             
-            // Calculate level percentage and update register 3005
+            // Special handling for KEY5 (key_id=5): laser calibration mode
+            // Don't update register 3004, instead call calibration callback
+            if(item->key_id == 5)
+            {
+                // Call app layer callback to update temporary calibration value
+                extern void App_LaserCalibrationCallback(unsigned short level_value);
+                App_LaserCalibrationCallback(level_value);
+            }
+            else
+            {
+                // Normal measurement: update register 3004
+                Modbus_SetHoldingReg(3004, level_value);
+            }
+            
+            // Calculate level percentage and update register 3005 (only for normal measurement)
             // Formula: percentage = ((start_point - level_value - end_point) / (start_point - end_point)) * 100
             // Real material height = start_point - level_value - end_point
             // Full tank height = start_point - end_point
-            if(start_point > end_point)
+            if(item->key_id != 5 && start_point > end_point)
             {
                 range = (unsigned long)start_point - (unsigned long)end_point;
                 diff = (unsigned long)start_point - (unsigned long)level_value - (unsigned long)end_point;

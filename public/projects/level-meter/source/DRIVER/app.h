@@ -43,6 +43,15 @@ void App_ProcessAutoMeasure(unsigned long now);
  */
 void App_ProcessLCD(void);
 
+/**
+ * Process 4-20mA current output (non-blocking)
+ * Reads level percentage from MODBUS register 3005 and outputs
+ * corresponding 4-20mA current via GP8202AS DAC (I2C).
+ * 0% = 4mA, 100% = 20mA
+ * Should be called in main loop
+ */
+void App_ProcessCurrentOutput(void);
+
 // UART passthrough helper (currently unused; declaration kept for reference)
 // void App_ProcessPassthrough(void);
 
@@ -79,6 +88,12 @@ void App_NotifyMeasurementSuccess(void);
 
 // Global flag to clear manual countdown mode when measurement succeeds
 extern unsigned char auto_measure_manual_countdown_active_flag;
+
+/**
+ * Laser calibration callback (called by cmd_queue when K5 key triggers measurement)
+ * @param level_value: Measured distance value in mm
+ */
+void App_LaserCalibrationCallback(unsigned short level_value);
 
 #if 0
 /**

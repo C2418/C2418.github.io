@@ -1,6 +1,7 @@
 // dht11.c
 #include "dht11.h"
 #include "delay.h"
+#include "irq_guard.h"
 #include <intrins.h>
 
 // DHT11数据存储
@@ -158,14 +159,21 @@ unsigned char DHT11_Read_Byte(void)
  * 返回1: 失败 - 等待响应低电平超时
  * 返回2: 失败 - 等待响应高电平超时
  * 返回3: 失败 - 校验和错误
+ * 
+ * 注意：DHT11 通信需要精确的微秒级时序，必须在禁用中断的情况下进行
  */
 unsigned char DHT11_Read_Data(void)
 {
     unsigned char R_H, R_L, T_H, T_L, checksum;
     unsigned char timeout;
+    unsigned char irq_state;
     
-    // 启动DHT11
+    // 启动DHT11（这部分可以有中断，时序要求不严格）
     DHT11_Start();
+    
+    // 关键时序部分：禁用中断，确保时序精确
+    // DHT11 通信协议要求微秒级精度，任何中断都会导致时序错乱
+    irq_state = IRQ_Save();
     
     // 等待DHT11响应：传感器拉低83µs（响应信号）
     // DHT11标准：MCU释放后，DHT11应在20-200us内拉低响应
@@ -182,6 +190,7 @@ unsigned char DHT11_Read_Data(void)
             dht11_data[1] = 0xFF;
             dht11_data[2] = 0xFF;
             dht11_data[3] = 0xFF;
+            IRQ_Restore(irq_state);  // 恢复中断
             return 1;  // DHT11未响应（启动后没有拉低，可能连接问题或DHT11故障）
         }
     }
@@ -200,6 +209,7 @@ unsigned char DHT11_Read_Data(void)
             dht11_data[1] = 0xFF;
             dht11_data[2] = 0xFF;
             dht11_data[3] = 0xFF;
+            IRQ_Restore(irq_state);  // 恢复中断
             return 1;  // 超时失败 - 等待响应低电平结束超时
         }
     }
@@ -224,6 +234,9 @@ unsigned char DHT11_Read_Data(void)
     T_H = DHT11_Read_Byte();   // 温度整数部分
     T_L = DHT11_Read_Byte();   // 温度小数部分
     checksum = DHT11_Read_Byte(); // 校验和
+    
+    // 关键时序部分结束：恢复中断
+    IRQ_Restore(irq_state);
     
     // 检查是否有字节读取超时
     if(R_H == 0xFF || R_L == 0xFF || T_H == 0xFF || T_L == 0xFF || checksum == 0xFF)

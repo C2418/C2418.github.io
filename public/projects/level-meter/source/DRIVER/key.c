@@ -37,13 +37,18 @@ void Key_Init(void)
     {
         keyData[i].state = KS_IDLE;
         keyData[i].ts = now;
-        keyData[i].press_ts = 0;
-        keyData[i].pending = KP_NONE;
+        keyData[i].first_press_ts = 0;
+        keyData[i].press_count = 0;
     }
 }
 
 /**
  * Update one key state machine (non-blocking, call periodically)
+ * 按键识别逻辑：
+ * - 单击：0.5秒内按下并释放（只按一次）
+ * - 长按：0.5秒后还在按下状态，释放后触发
+ * - 双击：0.5秒内按下两次（第二次可按可不按），释放后触发
+ * 
  * @param id: Key ID (0-5)
  * @param now: Current tick (from Systick_GetTick())
  * @return: KeyEvent if event occurred, KEY_NONE otherwise
@@ -54,6 +59,7 @@ KeyEvent Key_UpdateOne(unsigned char id, unsigned long now)
     unsigned char level = readKey(id);  // 0=pressed, 1=released
     KeyEvent ev = KEY_NONE;
     unsigned long elapsed;
+    unsigned long elapsed_from_first;  // C51 requirement: declare at function start
     
     switch(k->state)
     {
@@ -66,55 +72,142 @@ KeyEvent Key_UpdateOne(unsigned char id, unsigned long now)
             break;
             
         case KS_DEBOUNCE:
+            elapsed = (now >= k->ts) ? (now - k->ts) : (0xFFFFFFFFUL - k->ts + now + 1);
+            
             if(level == 0)  // Still pressed
             {
-                // Check if debounce time elapsed
-                elapsed = (now >= k->ts) ? (now - k->ts) : (0xFFFFFFFFUL - k->ts + now + 1);
                 if(elapsed >= KEY_DEBOUNCE_MS)
                 {
                     // Debounce complete - first press confirmed
-                    k->state = KS_PRESSED;
-                    k->press_ts = now;
-                    k->pending = KP_NONE;
+                    k->state = KS_FIRST_PRESSED;
+                    k->first_press_ts = now;
+                    k->press_count = 1;
                 }
             }
             else  // Released during debounce (false trigger)
             {
                 k->state = KS_IDLE;
-                k->pending = KP_NONE;
+                k->press_count = 0;
             }
             break;
             
-        case KS_PRESSED:
-            if(level == 0)  // Still pressed
+        case KS_FIRST_PRESSED:
+            elapsed = (now >= k->first_press_ts) ? (now - k->first_press_ts) : (0xFFFFFFFFUL - k->first_press_ts + now + 1);
+            
+            if(elapsed >= KEY_CLICK_TIMEOUT_MS)  // 0.5秒超时
             {
-                // Check for long press
-                elapsed = (now >= k->press_ts) ? (now - k->press_ts) : (0xFFFFFFFFUL - k->press_ts + now + 1);
-                if(elapsed >= KEY_LONG_MS)
+                if(level == 0)  // Still pressed after 0.5s -> Long press
                 {
-                    // Long press detected
-                    ev = KEY_LONG_PRESS;
-                    k->state = KS_IDLE;
-                    k->pending = KP_NONE;
+                    // 长按识别：0.5秒后还按着，等待释放
+                    k->state = KS_WAIT_RELEASE_LONG;
+                }
+                else  // Released before timeout -> Should not happen (handled below)
+                {
+                    // This case is handled in the "else" branch below
                 }
             }
-            else  // Released - immediately trigger single click
+            else  // Within 0.5s timeout
             {
-                // Check if it was a long press (shouldn't happen here, but handle it)
-                elapsed = (now >= k->press_ts) ? (now - k->press_ts) : (0xFFFFFFFFUL - k->press_ts + now + 1);
-                if(elapsed >= KEY_LONG_MS)
+                if(level == 1)  // Released within 0.5s
                 {
-                    ev = KEY_LONG_PRESS;
-                    k->state = KS_IDLE;
-                    k->pending = KP_NONE;
+                    // 可能是单击或双击的第一次按下
+                    // 等待看是否有第二次按下
+                    k->state = KS_WAIT_SECOND;
+                    k->ts = now;  // Record release time
+                }
+                // If still pressed, continue waiting for timeout
+            }
+            break;
+            
+        case KS_WAIT_RELEASE_LONG:
+            // 长按已识别，等待释放后通知
+            if(level == 1)  // Released
+            {
+                ev = KEY_LONG_PRESS;
+                k->state = KS_IDLE;
+                k->press_count = 0;
+            }
+            break;
+            
+        case KS_WAIT_SECOND:
+            // 等待第二次按下（双击检测）
+            elapsed = (now >= k->ts) ? (now - k->ts) : (0xFFFFFFFFUL - k->ts + now + 1);
+            
+            if(level == 0)  // Second press detected
+            {
+                // Check if within double-click gap time
+                if(elapsed <= KEY_DOUBLE_GAP_MS)
+                {
+                    // Second press within gap -> Double click
+                    k->state = KS_SECOND_DEBOUNCE;
+                    k->ts = now;
                 }
                 else
                 {
-                    // Immediately trigger single click event (no double-click detection)
+                    // Second press too late -> Treat first as single click, start new sequence
+                    ev = KEY_SINGLE;
+                    k->state = KS_DEBOUNCE;
+                    k->ts = now;
+                }
+            }
+            else  // No second press
+            {
+                // Check if first press timeout expired (0.5s from first press)
+                elapsed_from_first = (now >= k->first_press_ts) ? 
+                    (now - k->first_press_ts) : (0xFFFFFFFFUL - k->first_press_ts + now + 1);
+                
+                if(elapsed_from_first >= KEY_CLICK_TIMEOUT_MS)
+                {
+                    // 0.5秒内只按了一次 -> Single click
                     ev = KEY_SINGLE;
                     k->state = KS_IDLE;
-                    k->pending = KP_NONE;
+                    k->press_count = 0;
                 }
+            }
+            break;
+            
+        case KS_SECOND_DEBOUNCE:
+            elapsed = (now >= k->ts) ? (now - k->ts) : (0xFFFFFFFFUL - k->ts + now + 1);
+            
+            if(level == 0)  // Still pressed
+            {
+                if(elapsed >= KEY_DEBOUNCE_MS)
+                {
+                    // Second press debounce complete -> Double click confirmed
+                    k->press_count = 2;
+                    
+                    // Check if we're still within 0.5s from first press
+                    elapsed_from_first = (now >= k->first_press_ts) ? 
+                        (now - k->first_press_ts) : (0xFFFFFFFFUL - k->first_press_ts + now + 1);
+                    
+                    if(elapsed_from_first < KEY_CLICK_TIMEOUT_MS)
+                    {
+                        // Double click within 0.5s -> Wait for release
+                        k->state = KS_WAIT_RELEASE_DOUBLE;
+                    }
+                    else
+                    {
+                        // Exceeded 0.5s -> Treat as new press
+                        k->state = KS_FIRST_PRESSED;
+                        k->first_press_ts = now;
+                        k->press_count = 1;
+                    }
+                }
+            }
+            else  // Released during second debounce
+            {
+                // False trigger, go back to waiting for second press
+                k->state = KS_WAIT_SECOND;
+            }
+            break;
+            
+        case KS_WAIT_RELEASE_DOUBLE:
+            // 双击已识别，等待释放后通知
+            if(level == 1)  // Released
+            {
+                ev = KEY_DOUBLE;
+                k->state = KS_IDLE;
+                k->press_count = 0;
             }
             break;
     }

@@ -50,4 +50,10 @@ unsigned short Modbus_GetHoldingReg(unsigned short reg_addr);
  */
 void Modbus_Process(void);
 
+/**
+ * Save writable registers (4000-4004) to EEPROM
+ * Call this function after modifying registers via keys or other means
+ */
+void Modbus_SaveToEEPROM(void);
+
 #endif  // __MODBUS_H__

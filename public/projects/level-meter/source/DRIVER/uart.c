@@ -7,7 +7,7 @@
 // -------------------------------
 // Interrupt-based receive buffers (FIFO)
 // -------------------------------
-#define UART_RX_BUF_SIZE 64
+#define UART_RX_BUF_SIZE 128  // Increased from 64 to prevent NE2 heartbeat overflow
 
 static unsigned char UART0_RX_Buffer[UART_RX_BUF_SIZE];
 static volatile unsigned char UART0_RX_Head = 0;

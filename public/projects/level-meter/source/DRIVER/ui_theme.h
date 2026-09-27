@@ -4,38 +4,37 @@
 #include "st7789.h"
 
 // ===== Theme Colors (RGB565) =====
-// 深色工业风格配色方案
+// 现代工业风/苹果风配色方案
 
-// 背景色
-#define UI_BG_COLOR         RGB565(255,0,0)      // 红色背景
-#define UI_STATUS_BAR_COLOR RGB565(28,28,28)     // 状态栏背景（稍亮）
-#define UI_PANEL_COLOR      RGB565(26,26,26)     // 数据面板背景（暗底板块）
+// 主背景色
+#define UI_BG_COLOR              RGB565(18,18,18)       // 深灰黑背景（类似苹果深色模式）
+#define UI_STATUS_BAR_COLOR      RGB565(30,30,30)       // 顶部标题栏背景（稍亮）
 
-// 卡片和容器
-#define UI_CARD_COLOR       RGB565(40,40,40)     // 信息卡片背景
-#define UI_BORDER_COLOR     RGB565(70,70,70)     // 边框颜色
-#define UI_DIVIDER_COLOR    RGB565(50,50,50)     // 分割线颜色
+// 传感器数据区（T, RH, PS）
+#define UI_SENSOR_BG             RGB565(25,25,28)       // 传感器区域背景（略带蓝灰）
+#define UI_SENSOR_LABEL          RGB565(180,180,185)    // 传感器标签（较亮灰色）
+#define UI_SENSOR_VALUE          RGB565(255,255,255)    // 传感器数值（纯白）
 
-// 文字颜色
-#define UI_TEXT_MAIN        RGB565(230,230,230)   // 主文字（白色）
-#define UI_TEXT_SUB         RGB565(160,160,160)   // 次要文字（浅灰）
-#define UI_TEXT_DIM         RGB565(100,100,100)   // 暗淡文字（深灰）
-#define UI_TEXT_LABEL       RGB565(150,150,150)   // 标签文字（浅灰）
-#define UI_TEXT_VALUE       RGB565(235,235,235)   // 数值文字（亮色）
-#define UI_LINE_COLOR       RGB565(90,90,90)      // 分隔线颜色（更明显）
+// 状态区（ST、S、AD统一为系统状态区）
+#define UI_STATUS_BG             RGB565(25,22,28)       // 系统状态区背景（略带紫灰，统一色调）
+#define UI_STATUS_LABEL          RGB565(180,180,185)    // 状态标签（较亮灰色）
+#define UI_STATUS_NORMAL         RGB565(52,199,89)      // 正常状态（苹果绿）
+#define UI_STATUS_ERROR          RGB565(255,69,58)      // 错误状态（苹果红）
+#define UI_STATUS_WARN           RGB565(255,159,10)     // 警告状态（苹果橙）
+#define UI_STATUS_VALUE          RGB565(255,214,10)     // 状态数值（苹果金色）
 
-// 强调色
-#define UI_ACCENT           RGB565(0,180,255)    // 强调色（蓝色）
-#define UI_ACCENT_DARK      RGB565(0,120,180)    // 强调色深色
-#define UI_SUCCESS          RGB565(0,200,100)     // 成功（绿色）
-#define UI_WARN             RGB565(255,150,0)     // 警告（橙色）
-#define UI_ERROR            RGB565(255,80,80)     // 错误（红色）
+// 顶部标题
+#define UI_TITLE_TEXT            RGB565(10,132,255)     // 标题文字（苹果蓝）
 
-// 按钮状态
-#define UI_BTN_NORMAL       UI_CARD_COLOR
-#define UI_BTN_ACTIVE       UI_ACCENT
-#define UI_BTN_TEXT_NORMAL  UI_TEXT_MAIN
-#define UI_BTN_TEXT_ACTIVE  RGB565(0,0,0)        // 激活按钮文字（黑色）
+// 分隔线
+#define UI_LINE_COLOR            RGB565(58,58,60)       // 分隔线（苹果深灰）
+
+// 单位文字
+#define UI_UNIT_TEXT             RGB565(142,142,147)    // 单位符号（浅灰）
+
+// 兼容旧定义（用于未分区的地方）
+#define UI_TEXT_LABEL            UI_SENSOR_LABEL
+#define UI_TEXT_VALUE            UI_SENSOR_VALUE
 
 #endif /* __UI_THEME_H__ */
 

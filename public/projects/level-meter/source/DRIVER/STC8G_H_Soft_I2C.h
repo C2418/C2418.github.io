@@ -7,7 +7,7 @@
 /* --- Web: www.STCAI.com ---------------------------------------------*/
 /* --- BBS: www.STCAIMCU.com  -----------------------------------------*/
 /* --- QQ:  800003751 -------------------------------------------------*/
-/* Èç¹ûÒªÔÚ³ÌÐòÖÐÊ¹ÓÃ´Ë´úÂë,ÇëÔÚ³ÌÐòÖÐ×¢Ã÷Ê¹ÓÃÁËSTCµÄ×ÊÁÏ¼°³ÌÐò            */
+/* ï¿½ï¿½ï¿½Òªï¿½Ú³ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½Ã´Ë´ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ú³ï¿½ï¿½ï¿½ï¿½ï¿½×¢ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½STCï¿½ï¿½ï¿½ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½ï¿½ï¿½            */
 /*---------------------------------------------------------------------*/
 
 #ifndef	__STC8G_H_SOFT_I2C_H
@@ -19,6 +19,7 @@
 #define SLAR    0x5B
 
 void SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number);
+void SI2C_WriteNbyte_Force(u8 dev_addr, u8 mem_addr, u8 *p, u8 number); /* send full frame, ignore NACK (test) */
 void SI2C_ReadNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number);
 
 #endif
