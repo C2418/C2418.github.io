@@ -18,7 +18,7 @@
 #define SLAW    0x5A
 #define SLAR    0x5B
 
-void SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number);
+unsigned char SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number);
 void SI2C_WriteNbyte_Force(u8 dev_addr, u8 mem_addr, u8 *p, u8 number); /* send full frame, ignore NACK (test) */
 void SI2C_ReadNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number);
 

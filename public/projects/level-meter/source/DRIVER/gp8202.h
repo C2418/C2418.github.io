@@ -15,7 +15,7 @@
 #define GP8202_DAC_MAX       4095
 
 void GP8202_Init(void);
-void GP8202_SetDAC(unsigned short dac_value);
-void GP8202_SetPercent(unsigned char percent);
+unsigned char GP8202_SetDAC(unsigned short dac_value);
+unsigned char GP8202_SetPercent(unsigned char percent);
 
 #endif

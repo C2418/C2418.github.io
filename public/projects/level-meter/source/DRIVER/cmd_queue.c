@@ -185,7 +185,11 @@ static unsigned char ParseDecimal(const char *str, unsigned char len, unsigned s
         {
             return 1;  // Invalid character
         }
-        result = result * 10 + (str[i] - '0');
+        {
+            unsigned char digit = str[i] - '0';
+            if(result > (65535UL - digit) / 10UL) return 1;
+            result = (unsigned short)(result * 10UL + digit);
+        }
     }
     
     *value = result;
@@ -209,8 +213,6 @@ void CmdQueue_HandleResponse(const char *resp)
     unsigned char error_code_high;
     unsigned char error_code_low;
     unsigned char error_code;
-    unsigned long range;
-    unsigned long diff;
     unsigned char percentage;
     
     if(q_count == 0)
@@ -353,50 +355,29 @@ void CmdQueue_HandleResponse(const char *resp)
                 return;
             }
             
-            // Check if measurement exceeds maximum limit (0ECH error)
-            // Assuming maximum limit is 99999mm (can be adjusted)
-            if(level_value > 99999)
+            // Use the same validated physical-height calculation as the display.
+            if(item->key_id != 5)
             {
-                Modbus_SetHoldingReg(3006, 0xEC);
-                item->state = CMD_TIMEOUT;
-                return;
+                if(!App_CalculateLevelPercent(start_point, end_point, level_value, &percentage))
+                {
+                    Modbus_SetHoldingReg(3006, 0xEE);
+                    item->state = CMD_TIMEOUT;
+                    return;
+                }
             }
-            
-            // Success: Clear error code and update MODBUS register 3004 (PSDAT: Actual level data)
-            // According to spec: "激光测量数据正确时，刷新设备本地显示和远程读取寄存器"
-            Modbus_SetHoldingReg(3006, 0x00);  // Clear error code
-            
-            // Special handling for KEY5 (key_id=5): laser calibration mode
-            // Don't update register 3004, instead call calibration callback
+
+            // Commit registers only after all measurement validation succeeds.
+            Modbus_SetHoldingReg(3006, 0x00);
+
+            // KEY5 updates the temporary calibration value only.
             if(item->key_id == 5)
             {
-                // Call app layer callback to update temporary calibration value
                 extern void App_LaserCalibrationCallback(unsigned short level_value);
                 App_LaserCalibrationCallback(level_value);
             }
             else
             {
-                // Normal measurement: update register 3004
                 Modbus_SetHoldingReg(3004, level_value);
-            }
-            
-            // Calculate level percentage and update register 3005 (only for normal measurement)
-            // Formula: percentage = ((start_point - level_value - end_point) / (start_point - end_point)) * 100
-            // Real material height = start_point - level_value - end_point
-            // Full tank height = start_point - end_point
-            if(item->key_id != 5 && start_point > end_point)
-            {
-                range = (unsigned long)start_point - (unsigned long)end_point;
-                diff = (unsigned long)start_point - (unsigned long)level_value - (unsigned long)end_point;
-                if(range > 0)
-                {
-                    percentage = (unsigned char)((diff * 100) / range);
-                    if(percentage > 100) percentage = 100;
-                }
-                else
-                {
-                    percentage = 0;
-                }
                 Modbus_SetHoldingReg(3005, percentage);
             }
             

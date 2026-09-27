@@ -348,20 +348,10 @@ void Modbus_Process(void)
     unsigned char rx_count;
     unsigned short index;
     unsigned short reg_val;
+    unsigned short expected_len;
+    unsigned char detected_func;
     
-    // Flush stale INCOMPLETE frames only (do NOT flush complete frames)
-    // 50ms flush was discarding complete frames when main loop was slow (e.g. during LCD refresh)
-    // Only flush when we have partial data that cannot form a complete 03/06 frame (< 8 bytes)
-    if(modbus_rx_index > 0 && modbus_rx_index < 8 && modbus_last_rx_tick != 0 &&
-       Systick_Elapsed(modbus_last_rx_tick, 50))
-    {
-        modbus_rx_index = 0;
-        modbus_last_rx_tick = 0;
-    }
-    
-    // Read characters from UART3 receive buffer (aggressive draining)
-    // CRITICAL FIX: Read ALL available data to prevent UART3 RX buffer overflow
-    // No limit on rx_count - drain the entire buffer each call
+    // Drain all UART bytes into a bounded frame buffer.
     rx_count = 0;
     while((recv_char = Uart3_GetCharFromBuffer()) >= 0)
     {
@@ -370,66 +360,53 @@ void Modbus_Process(void)
         if(modbus_rx_index < MODBUS_RX_BUF_SIZE - 1)
         {
             modbus_rx_buffer[modbus_rx_index++] = (unsigned char)recv_char;
-            // Record time of the latest received byte
             modbus_last_rx_tick = Systick_GetTick();
         }
         else
         {
-            // CRITICAL FIX: MODBUS buffer full - STOP reading and drain UART3 buffer
             modbus_rx_index = 0;
             modbus_last_rx_tick = 0;
-            // Drain remaining UART3 buffer without processing
-            while(Uart3_GetCharFromBuffer() >= 0)
-            {
-                // Discard all remaining data
-            }
-            break;  // Exit loop immediately
+            while(Uart3_GetCharFromBuffer() >= 0) { }
+            break;
         }
     }
-    
-    // If no new data received but we already have some bytes,
-    // the frame timeout will be evaluated below using Systick_Elapsed().
-    
-    // Frame end detection: 3.5 character time timeout
-    // If no new data received for MODBUS_FRAME_TIMEOUT_MS, consider frame complete
-    // Minimum frame length check: Addr(1) + Func(1) + Data(2) + CRC(2) = 6 bytes
-    // For function 0x03/0x06: minimum is 8 bytes
-    if(modbus_rx_index >= 6)
+
+    // Evaluate frame completeness only after the RTU inter-frame silence.
+    // Any partial or concatenated frame is discarded so it cannot poison the
+    // following valid request. Function 0x10 length comes from byte-count.
+    if(modbus_rx_index > 0 && Systick_Elapsed(modbus_last_rx_tick, MODBUS_FRAME_TIMEOUT_MS))
     {
-        // For function codes 0x03 and 0x06, we need at least 8 bytes
-        if(modbus_rx_index >= 4)
+        expected_len = 0;
+        if(modbus_rx_index >= 2)
         {
-            unsigned char detected_func = modbus_rx_buffer[1];
-            unsigned char min_len = 6;  // Minimum for any function
-            
+            detected_func = modbus_rx_buffer[1];
             if(detected_func == 0x03 || detected_func == 0x06)
             {
-                min_len = 8;  // Addr + Func + StartAddr(2) + RegCount/Value(2) + CRC(2)
+                expected_len = 8;
             }
             else if(detected_func == 0x10)
             {
-                // For 0x10, need at least 9 bytes to check byte_count
-                if(modbus_rx_index >= 9)
+                if(modbus_rx_index >= 7)
                 {
-                    unsigned char byte_count = modbus_rx_buffer[6];
-                    min_len = 9 + byte_count;  // Full frame length
-                }
-                else
-                {
-                    min_len = 9;  // Wait for more data
+                    expected_len = 9 + modbus_rx_buffer[6];
                 }
             }
-            
-            // Check if frame is complete (has minimum length and timeout occurred)
-            if(modbus_rx_index >= min_len &&
-               modbus_last_rx_tick != 0 &&
-               Systick_Elapsed(modbus_last_rx_tick, MODBUS_FRAME_TIMEOUT_MS))
+            else
             {
-                frame_complete = 1;
+                expected_len = 8;
             }
         }
+
+        if(expected_len == 0 || expected_len >= MODBUS_RX_BUF_SIZE ||
+           modbus_rx_index != expected_len)
+        {
+            modbus_rx_index = 0;
+            modbus_last_rx_tick = 0;
+            return;
+        }
+        frame_complete = 1;
     }
-    
+
     // Process frame if complete
     if(frame_complete)
     {

@@ -639,6 +639,26 @@ void App_ProcessAutoMeasure(unsigned long now)
  * Update interval: 500ms
  * Mapping: 0% = 4mA (DAC=0x000), 100% = 20mA (DAC=0xFFF)
  */
+unsigned char App_CalculateLevelPercent(unsigned short start_mm, unsigned short end_mm, unsigned short distance_mm, unsigned char *percent)
+{
+    unsigned long full_range;
+    unsigned long material_height;
+    unsigned long result;
+
+    if(percent == 0 || start_mm <= end_mm || distance_mm < end_mm || distance_mm > start_mm)
+    {
+        if(percent != 0) *percent = 0;
+        return 0;
+    }
+
+    full_range = (unsigned long)start_mm - (unsigned long)end_mm;
+    material_height = (unsigned long)start_mm - (unsigned long)distance_mm;
+    result = (material_height * 100UL) / full_range;
+    if(result > 100UL) result = 100UL;
+    *percent = (unsigned char)result;
+    return 1;
+}
+
 void App_ProcessCurrentOutput(void)
 {
     /* C51 requirement: All variable declarations must be at function start */
@@ -664,8 +684,7 @@ void App_ProcessCurrentOutput(void)
         
         /* Output 4-20mA current via GP8202AS DAC */
         GP8202_SetPercent(level_percent_val);
-        
-        /* Update timestamp */
+        /* Retry failed DAC writes at the normal 500ms interval, not every loop. */
         last_current_output_tick = Systick_GetTick();
     }
 }
@@ -750,7 +769,7 @@ void App_ProcessLCD(void)
     unsigned long lcd_refresh_interval;  // Dynamic LCD refresh interval
     // Variables for UI display
     float temp_value;
-    unsigned long full_height, real_height;
+    unsigned long full_height;
     // Error code display variables
     unsigned short error_reg;
     const char* error_msg;
@@ -984,41 +1003,9 @@ void App_ProcessLCD(void)
         // - 有效范围 = start_reg - end_reg
         // - 物料高度 = start_reg - level_reg（从底部到物料表面）
         // - 料位百分比 = (物料高度 / 有效范围) * 100
-        level_percent_invalid = 0;
-        if(start_reg > end_reg)
-        {
-            full_height = (unsigned long)start_reg - (unsigned long)end_reg;
-            
-            // Update MODBUS register 3003 (PPS: Effective range = start - end)
-            Modbus_SetHoldingReg(3003, (unsigned short)full_height);
-            
-            // 物料高度 = 传感器到底部的距离 - 传感器到物料表面的距离
-            real_height = (unsigned long)start_reg - (unsigned long)level_reg;
-            
-            if(full_height > 0)
-            {
-                if(real_height > full_height)
-                {
-                    level_percent_invalid = 1;
-                }
-                level_percent = (unsigned char)((real_height * 100) / full_height);
-                if(level_percent > 100) level_percent = 100;
-            }
-            else
-            {
-                level_percent = 0;
-                level_percent_invalid = 1;
-            }
-        }
-        else
-        {
-            // Invalid: start <= end, set PPS to 0
-            Modbus_SetHoldingReg(3003, 0);
-            level_percent = 0;
-            level_percent_invalid = 1;
-        }
-        
-        // Update MODBUS register 3005 (BFB: Level percentage 0-100)
+        full_height = (start_reg > end_reg) ? (unsigned long)start_reg - (unsigned long)end_reg : 0;
+        Modbus_SetHoldingReg(3003, (unsigned short)full_height);
+        level_percent_invalid = !App_CalculateLevelPercent(start_reg, end_reg, level_reg, &level_percent);
         Modbus_SetHoldingReg(3005, level_percent);
         
         // Determine display parameters based on setting state

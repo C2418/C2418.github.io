@@ -138,33 +138,33 @@ u8 I2C_ReadAbyte(void)          //read A byte from I2C
 }
 
 //========================================================================
-// ����: void SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number)
-// ����: I2Cд�����ݺ���.
-// ����: dev_addr: �豸��ַ, mem_addr: �洢��ַ, *pд�����ݴ洢λ��, numberд�����ݸ���.
-// ����: none.
-// �汾: V1.0, 2020-09-15
-//========================================================================
-void SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number)  /*  DeviceAddress,WordAddress,First Data Address,Byte lenth  */
+// ����: unsigned char SI2C_WriteNbyte(u8 dev_addr, u8 mem_addr, u8 *p, u8 number)
 {
-	I2C_Start();
-	I2C_WriteAbyte(dev_addr);
-	I2C_Check_ACK();
-	if(!F0)                                           //F0=0,right, F0=1,error
-	{
-		I2C_WriteAbyte(mem_addr);
-		I2C_Check_ACK();
-		if(!F0)
-		{
-			do
-			{
-				I2C_WriteAbyte(*p); p++;
-				I2C_Check_ACK();
-				if(F0)  break;
-			}
-			while(--number);
-		}
-	}
-	I2C_Stop();
+    if(p == 0 || number == 0) return 0;
+
+    I2C_Start();
+    I2C_WriteAbyte(dev_addr);
+    I2C_Check_ACK();
+    if(F0) goto i2c_write_failed;
+
+    I2C_WriteAbyte(mem_addr);
+    I2C_Check_ACK();
+    if(F0) goto i2c_write_failed;
+
+    while(number > 0)
+    {
+        I2C_WriteAbyte(*p++);
+        I2C_Check_ACK();
+        if(F0) goto i2c_write_failed;
+        number--;
+    }
+
+    I2C_Stop();
+    return 1;
+
+i2c_write_failed:
+    I2C_Stop();
+    return 0;
 }
 
 //========================================================================

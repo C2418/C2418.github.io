@@ -52,6 +52,9 @@ void App_ProcessLCD(void);
  */
 void App_ProcessCurrentOutput(void);
 
+/* Returns 1 for an in-range measurement; writes 0..100 percent. */
+unsigned char App_CalculateLevelPercent(unsigned short start_mm, unsigned short end_mm, unsigned short distance_mm, unsigned char *percent);
+
 // UART passthrough helper (currently unused; declaration kept for reference)
 // void App_ProcessPassthrough(void);
 
