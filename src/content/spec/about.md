@@ -10,4 +10,6 @@
 
 ## 嵌入式项目
 
-- [基于 STC8H 的激光料位仪](/posts/stc8h-level-meter/)：激光测距、ST7789 显示、温湿度采集与 Modbus RTU 通信，附完整现有源码和 Keil 工程。
+- [基于 STC8H 的激光料位仪](/posts/stc8h-level-meter/)（2025.12—2026.01）：激光测距、ST7789 显示、温湿度采集与 Modbus RTU 通信，附完整现有源码和 Keil 工程。
+
+- [涂鸦智能台灯](/posts/tuya-smart-lamp/)（2025.09）：冷暖双路 PWM、渐变调光、旋钮与触摸交互、App 与离线控制，附脱敏应用源码。
