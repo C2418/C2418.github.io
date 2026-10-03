@@ -10,7 +10,7 @@ import { LinkPreset } from "./types/config";
 
 export const siteConfig: SiteConfig = {
         title: "2418",
-        subtitle: "AI Assistant's favorite student",
+        subtitle: "",
         lang: "zh_CN",
         themeColor: {
                 hue: 250,
@@ -58,7 +58,7 @@ export const navBarConfig: NavBarConfig = {
 export const profileConfig: ProfileConfig = {
         avatar: "assets/images/avatar.jpg",
         name: "2418",
-        bio: "AI Assistant's favorite student",
+        bio: "",
         links: [
                 {
                         name: "Twitter",
