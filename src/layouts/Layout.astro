@@ -529,6 +529,7 @@ let lightbox: PhotoSwipeLightbox
 let pswp = import("photoswipe")
 
 function createPhotoSwipe() {
+	lightbox?.destroy()
 	lightbox = new PhotoSwipeLightbox({
 		gallery: ".custom-md img, #post-cover img",
 		pswpModule: () => pswp,
@@ -545,12 +546,13 @@ function createPhotoSwipe() {
 
 	lightbox.addFilter("domItemData", (itemData, element) => {
 		if (element instanceof HTMLImageElement) {
-			itemData.src = element.src
+			itemData.src = element.currentSrc || element.src
 
 			itemData.w = Number(element.naturalWidth || window.innerWidth)
 			itemData.h = Number(element.naturalHeight || window.innerHeight)
 
-			itemData.msrc = element.src
+			itemData.msrc = element.currentSrc || element.src
+			itemData.alt = element.alt
 		}
 
 		return itemData
@@ -559,10 +561,13 @@ function createPhotoSwipe() {
 	lightbox.init()
 }
 
+// Image zoom must also work when Swup page transitions are disabled.
+createPhotoSwipe()
+
+let swupHooksRegistered = false
 const setup = () => {
-	if (!lightbox) {
-		createPhotoSwipe()
-	}
+	if (swupHooksRegistered || !window.swup?.hooks) return
+	swupHooksRegistered = true
 	window.swup.hooks.on("page:view", () => {
 		createPhotoSwipe()
 	})
